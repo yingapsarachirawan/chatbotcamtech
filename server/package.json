@@ -1,0 +1,21 @@
+{
+  "name": "camtech-chatbot-server",
+  "version": "1.0.0",
+  "description": "Backend API for CamTech AI chatbot",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "pdf-parse": "^2.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
