@@ -36,17 +36,20 @@ const ai = process.env.GEMINI_API_KEY
   : null;
 
 const KNOWLEDGE_FOLDER = path.join(__dirname, "knowledge");
+const EMBEDDING_CACHE_PATH = path.join(
+  KNOWLEDGE_FOLDER,
+  "embeddings-cache.json"
+);
+
+const ENABLE_GEMINI_EMBEDDINGS =
+  process.env.ENABLE_GEMINI_EMBEDDINGS === "true";
 
 let knowledgeChunks = [];
 let embeddedChunks = [];
 let loadedPdfName = null;
 let semanticSearchReady = false;
+let embeddingStatus = "not used";
 
-/*
-  Conversation memory.
-  This is stored in memory only, so it resets when Render restarts.
-  That is fine for demo and testing.
-*/
 const conversationMemory = new Map();
 
 /* =========================
@@ -61,9 +64,7 @@ function getKnowledgePdfPath() {
   const files = fs.readdirSync(KNOWLEDGE_FOLDER);
   const pdfFile = files.find((file) => file.toLowerCase().endsWith(".pdf"));
 
-  if (!pdfFile) {
-    return null;
-  }
+  if (!pdfFile) return null;
 
   loadedPdfName = pdfFile;
   return path.join(KNOWLEDGE_FOLDER, pdfFile);
@@ -90,7 +91,7 @@ async function loadKnowledgePdf() {
     console.log(`School information loaded: ${loadedPdfName}`);
     console.log(`Total chunks created: ${knowledgeChunks.length}`);
 
-    await buildSemanticIndex();
+    await prepareEmbeddings();
   } catch (error) {
     console.error("Failed to load school information:", error.message);
     knowledgeChunks = [];
@@ -103,7 +104,7 @@ async function loadKnowledgePdf() {
    Text Helpers
 ========================= */
 
-function splitTextIntoChunks(text, chunkSize = 1100, overlap = 150) {
+function splitTextIntoChunks(text, chunkSize = 900, overlap = 100) {
   const cleanedText = text
     .replace(/\r/g, "\n")
     .replace(/[ \t]+/g, " ")
@@ -117,9 +118,7 @@ function splitTextIntoChunks(text, chunkSize = 1100, overlap = 150) {
     const end = start + chunkSize;
     const chunk = cleanedText.slice(start, end);
 
-    if (chunk.trim()) {
-      chunks.push(chunk.trim());
-    }
+    if (chunk.trim()) chunks.push(chunk.trim());
 
     start += chunkSize - overlap;
   }
@@ -161,6 +160,20 @@ function cleanAnswer(answer) {
     .trim();
 }
 
+function cleanPdfLine(line) {
+  return line
+    .replace(/Q:\s*/gi, "")
+    .replace(/A:\s*/gi, "")
+    .replace(/--\s*\d+\s*of\s*\d+\s*--/gi, "")
+    .replace(/_{5,}/g, "")
+    .replace(/={3,}/g, "")
+    .replace(/-{3,}/g, "")
+    .replace(/\.+\s*Page\s*\d+/gi, "")
+    .replace(/Page\s*\d+/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function isBadChunk(chunk) {
   const text = chunk.toLowerCase();
 
@@ -174,13 +187,11 @@ function isBadChunk(chunk) {
 }
 
 /* =========================
-   Embedding + Semantic Search
+   Gemini Embedding Search
 ========================= */
 
 function cosineSimilarity(vectorA, vectorB) {
-  if (!vectorA || !vectorB || vectorA.length !== vectorB.length) {
-    return 0;
-  }
+  if (!vectorA || !vectorB || vectorA.length !== vectorB.length) return 0;
 
   let dotProduct = 0;
   let normA = 0;
@@ -192,17 +203,13 @@ function cosineSimilarity(vectorA, vectorB) {
     normB += vectorB[i] * vectorB[i];
   }
 
-  if (normA === 0 || normB === 0) {
-    return 0;
-  }
+  if (normA === 0 || normB === 0) return 0;
 
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 async function getEmbedding(text) {
-  if (!ai) {
-    return null;
-  }
+  if (!ai) return null;
 
   const response = await ai.models.embedContent({
     model: "gemini-embedding-001",
@@ -219,24 +226,70 @@ async function getEmbedding(text) {
   return embedding;
 }
 
-async function buildSemanticIndex() {
+function loadEmbeddingCache() {
+  try {
+    if (!fs.existsSync(EMBEDDING_CACHE_PATH)) return false;
+
+    const cache = JSON.parse(fs.readFileSync(EMBEDDING_CACHE_PATH, "utf8"));
+
+    if (!Array.isArray(cache.embeddedChunks)) return false;
+
+    embeddedChunks = cache.embeddedChunks;
+    semanticSearchReady = embeddedChunks.length > 0;
+    embeddingStatus = "loaded from cache";
+
+    console.log(`Embedding cache loaded: ${embeddedChunks.length} chunks`);
+    return true;
+  } catch (error) {
+    console.error("Failed to load embedding cache:", error.message);
+    return false;
+  }
+}
+
+function saveEmbeddingCache() {
+  try {
+    const cache = {
+      pdfName: loadedPdfName,
+      createdAt: new Date().toISOString(),
+      embeddedChunks,
+    };
+
+    fs.writeFileSync(EMBEDDING_CACHE_PATH, JSON.stringify(cache, null, 2));
+    console.log("Embedding cache saved.");
+  } catch (error) {
+    console.error("Failed to save embedding cache:", error.message);
+  }
+}
+
+async function prepareEmbeddings() {
   embeddedChunks = [];
   semanticSearchReady = false;
+  embeddingStatus = "not used";
+
+  const cacheLoaded = loadEmbeddingCache();
+
+  if (cacheLoaded) {
+    return;
+  }
+
+  if (!ENABLE_GEMINI_EMBEDDINGS) {
+    embeddingStatus = "disabled, using normal search";
+    console.log("Gemini embeddings disabled. Using normal PDF search.");
+    return;
+  }
 
   if (!ai || knowledgeChunks.length === 0) {
-    console.log("Semantic search skipped.");
+    embeddingStatus = "unavailable";
     return;
   }
 
   try {
-    console.log("Building semantic search index...");
+    console.log("Building Gemini embedding cache...");
 
     for (let i = 0; i < knowledgeChunks.length; i += 1) {
       const chunk = knowledgeChunks[i];
 
-      if (isBadChunk(chunk)) {
-        continue;
-      }
+      if (isBadChunk(chunk)) continue;
 
       const embedding = await getEmbedding(chunk);
 
@@ -249,12 +302,19 @@ async function buildSemanticIndex() {
     }
 
     semanticSearchReady = embeddedChunks.length > 0;
+    embeddingStatus = semanticSearchReady
+      ? "built with Gemini"
+      : "not available";
 
-    console.log(`Semantic search ready: ${semanticSearchReady ? "YES" : "NO"}`);
+    if (semanticSearchReady) {
+      saveEmbeddingCache();
+    }
   } catch (error) {
-    console.error("Semantic search setup failed:", error.message);
+    console.error("Embedding quota/error:", error.message);
+
     embeddedChunks = [];
     semanticSearchReady = false;
+    embeddingStatus = "failed, using normal search";
   }
 }
 
@@ -287,32 +347,181 @@ ${memory.history
       .filter((item) => item.score > 0.32)
       .map((item) => item.text);
   } catch (error) {
-    console.error("Semantic search failed:", error.message);
+    console.error("Semantic search failed, using normal search:", error.message);
     return [];
   }
 }
 
 /* =========================
-   Simple Fallback Search
+   Normal PDF Search Backup
 ========================= */
 
-function findBasicRelevantChunks(question) {
-  const questionWords = normalizeText(question)
+function getQuestionWords(question, memory) {
+  const recentConversation = memory.history
+    .slice(-4)
+    .map((item) => item.text)
+    .join(" ");
+
+  const combinedText = `${question} ${recentConversation}`;
+
+  const stopWords = [
+    "i",
+    "me",
+    "my",
+    "you",
+    "your",
+    "we",
+    "they",
+    "it",
+    "is",
+    "are",
+    "was",
+    "were",
+    "do",
+    "does",
+    "did",
+    "can",
+    "could",
+    "would",
+    "should",
+    "the",
+    "a",
+    "an",
+    "to",
+    "of",
+    "for",
+    "in",
+    "on",
+    "at",
+    "and",
+    "or",
+    "but",
+    "so",
+    "with",
+    "about",
+    "what",
+    "how",
+    "when",
+    "where",
+    "why",
+    "which",
+    "please",
+    "tell",
+    "know",
+    "want",
+    "need",
+    "give",
+    "more",
+    "then",
+    "also",
+    "again",
+  ];
+
+  const words = normalizeText(combinedText)
     .split(" ")
-    .filter((word) => word.length > 2);
+    .filter((word) => word.length > 2 && !stopWords.includes(word));
+
+  const expanded = [...words];
+  const text = normalizeText(combinedText);
+
+  if (
+    text.includes("pay") ||
+    text.includes("fee") ||
+    text.includes("cost") ||
+    text.includes("tuition") ||
+    text.includes("price") ||
+    text.includes("expensive")
+  ) {
+    expanded.push("tuition", "fee", "fees", "cost", "payment");
+  }
+
+  if (
+    text.includes("apply") ||
+    text.includes("admission") ||
+    text.includes("requirement") ||
+    text.includes("document") ||
+    text.includes("paper") ||
+    text.includes("enroll") ||
+    text.includes("enrol")
+  ) {
+    expanded.push(
+      "admission",
+      "application",
+      "requirement",
+      "requirements",
+      "documents",
+      "certificate",
+      "transcript"
+    );
+  }
+
+  if (
+    text.includes("english") ||
+    text.includes("ielts") ||
+    text.includes("toefl") ||
+    text.includes("language")
+  ) {
+    expanded.push("english", "ielts", "toefl", "proficiency", "language");
+  }
+
+  if (
+    text.includes("scholarship") ||
+    text.includes("discount") ||
+    text.includes("financial") ||
+    text.includes("support")
+  ) {
+    expanded.push("scholarship", "financial", "support", "discount");
+  }
+
+  if (
+    text.includes("contact") ||
+    text.includes("phone") ||
+    text.includes("email") ||
+    text.includes("office") ||
+    text.includes("location") ||
+    text.includes("address")
+  ) {
+    expanded.push("contact", "phone", "email", "office", "location", "address");
+  }
+
+  if (text.includes("master") || text.includes("masters")) {
+    expanded.push("master", "graduate");
+  }
+
+  if (text.includes("bachelor")) {
+    expanded.push("bachelor", "undergraduate");
+  }
+
+  if (
+    text.includes("phd") ||
+    text.includes("doctoral") ||
+    text.includes("doctorate")
+  ) {
+    expanded.push("phd", "doctoral", "doctorate");
+  }
+
+  return [...new Set(expanded)];
+}
+
+function findNormalChunks(question, memory) {
+  const words = getQuestionWords(question, memory);
+
+  if (words.length === 0) {
+    return knowledgeChunks.filter((chunk) => !isBadChunk(chunk)).slice(0, 2);
+  }
 
   const scoredChunks = knowledgeChunks.map((chunk) => {
     const chunkText = normalizeText(chunk);
     let score = 0;
 
-    for (const word of questionWords) {
+    for (const word of words) {
       if (chunkText.includes(word)) {
-        score += 1;
+        score += 2;
       }
     }
 
     if (isBadChunk(chunk)) {
-      score -= 10;
+      score -= 20;
     }
 
     return {
@@ -328,8 +537,86 @@ function findBasicRelevantChunks(question) {
     .map((item) => item.text);
 }
 
+async function findBestChunks(question, memory) {
+  const semanticChunks = await findSemanticChunks(question, memory);
+
+  if (semanticChunks.length > 0) {
+    return {
+      chunks: semanticChunks,
+      searchUsed: "Gemini embedding search",
+    };
+  }
+
+  return {
+    chunks: findNormalChunks(question, memory),
+    searchUsed: "normal PDF search",
+  };
+}
+
 /* =========================
-   Gemini Helpers
+   Clean Fallback Answer
+========================= */
+
+function createCleanFallbackAnswer(question, relevantChunks) {
+  if (relevantChunks.length === 0) {
+    return "I could not find enough information for that. Please ask about admission, tuition fees, scholarships, English requirements, programs, or contact information.";
+  }
+
+  const text = relevantChunks.join("\n");
+  const normalizedQuestion = normalizeText(question);
+
+  if (
+    normalizedQuestion.includes("tuition") ||
+    normalizedQuestion.includes("fee") ||
+    normalizedQuestion.includes("cost") ||
+    normalizedQuestion.includes("pay") ||
+    normalizedQuestion.includes("price")
+  ) {
+    return "For tuition fee information, please contact the admissions office for the latest and most accurate fee details. Tuition fees may depend on the program and study level.";
+  }
+
+  if (
+    normalizedQuestion.includes("admission") ||
+    normalizedQuestion.includes("apply") ||
+    normalizedQuestion.includes("requirement") ||
+    normalizedQuestion.includes("document") ||
+    normalizedQuestion.includes("paper")
+  ) {
+    return "For admission, students may need to prepare academic records, application information, and supporting documents depending on the program level. Please contact the school office for confirmation of the exact requirements.";
+  }
+
+  if (
+    normalizedQuestion.includes("english") ||
+    normalizedQuestion.includes("ielts") ||
+    normalizedQuestion.includes("toefl")
+  ) {
+    return "English requirements depend on the program level. Accepted English proficiency tests may include IELTS, TOEFL, or equivalent results. Please confirm the exact requirement with the school office.";
+  }
+
+  const lines = text
+    .split(/\n+/)
+    .map(cleanPdfLine)
+    .filter((line) => line.length > 20)
+    .filter((line) => !line.toLowerCase().includes("table of contents"))
+    .filter((line) => !line.toLowerCase().includes("official knowledge base"))
+    .filter((line) => !line.toLowerCase().includes("option 1"))
+    .filter((line) => !line.match(/^page\s*\d+$/i));
+
+  const uniqueLines = [...new Set(lines)].slice(0, 4);
+
+  if (uniqueLines.length === 0) {
+    return "I found some related information, but I need a more specific question to answer clearly.";
+  }
+
+  return cleanAnswer(
+    `${uniqueLines
+      .map((line) => `- ${line}`)
+      .join("\n")}\n\nPlease verify important information with the school office.`
+  );
+}
+
+/* =========================
+   Gemini Answer Generation
 ========================= */
 
 function extractGeminiText(response) {
@@ -366,13 +653,9 @@ async function callGemini(model, prompt) {
   return answer;
 }
 
-/* =========================
-   AI-First Answer Generation
-========================= */
-
-async function generateSmartAnswer(question, relevantChunks, memory) {
+async function generateSmartAnswer(question, relevantChunks, memory, searchUsed) {
   if (!ai) {
-    return "Sorry, the AI service is not available right now. Please contact the school office for confirmation.";
+    return createCleanFallbackAnswer(question, relevantChunks);
   }
 
   const schoolInformation =
@@ -386,24 +669,21 @@ async function generateSmartAnswer(question, relevantChunks, memory) {
     .join("\n");
 
   const prompt = `
-You are CamTech Chatbot, a smart and friendly school information assistant.
+You are CamTech Chatbot, a helpful school information assistant.
 
-Behave like a real AI assistant, not a keyword bot.
+Behave like a normal AI assistant, not a keyword bot.
 
-Main job:
-- Understand the student's message naturally.
-- Use recent conversation to understand follow-up questions.
-- Use school information to answer CamTech-related questions.
-- If the student asks something casual, reply naturally and briefly.
-- If the student asks a vague follow-up, infer what they mean from recent conversation.
+Use the recent conversation to understand follow-up questions.
+Use the school information to answer CamTech-related questions.
+If the message is casual, reply naturally and briefly.
 
 Rules:
-- Do not mention PDF, document, source, context, chunks, embeddings, semantic search, or knowledge base.
+- Do not mention PDF, document, source, context, chunks, embeddings, semantic search, search method, or knowledge base.
 - Do not show page numbers.
 - Do not show raw Q/A format.
 - Do not invent exact details if they are not available.
-- If exact details are not available, say the student should contact the school office for confirmation.
-- Keep answers clear, helpful, and not too long.
+- If exact details are not available, tell the student to contact the school office for confirmation.
+- Keep the answer clear, helpful, and not too long.
 - Use bullet points only when useful.
 - If the question is unclear, ask a helpful follow-up question.
 
@@ -419,19 +699,24 @@ ${question}
 Reply as CamTech Chatbot:
 `;
 
-  const models = ["gemini-2.0-flash", "gemini-2.5-flash"];
+  const models = [
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-2.5-flash",
+  ];
 
   for (const model of models) {
     try {
-      console.log(`Trying Gemini model: ${model}`);
+      console.log(`Trying Gemini answer model: ${model}`);
       const answer = await callGemini(model, prompt);
       return cleanAnswer(answer);
     } catch (error) {
-      console.error(`${model} error:`, error.message);
+      console.error(`${model} answer error:`, error.message);
     }
   }
 
-  return "Sorry, I could not answer that clearly right now. Please try again or contact the school office for confirmation.";
+  console.log(`Gemini answer failed. Fallback used after ${searchUsed}.`);
+  return createCleanFallbackAnswer(question, relevantChunks);
 }
 
 /* =========================
@@ -491,7 +776,10 @@ app.get("/", (req, res) => {
     aiProvider: ai ? "Google Gemini" : "No Gemini API key",
     ready: knowledgeChunks.length > 0,
     semanticSearchReady,
-    mode: "AI-first RAG with memory",
+    embeddingStatus,
+    answerMode: "Gemini with normal fallback",
+    note:
+      "Gemini is used when quota is available. Normal PDF fallback is used when quota fails.",
   });
 });
 
@@ -501,7 +789,8 @@ app.get("/api/status", (req, res) => {
     aiProvider: ai ? "Google Gemini" : "No Gemini API key",
     ready: knowledgeChunks.length > 0,
     semanticSearchReady,
-    mode: "AI-first RAG with memory",
+    embeddingStatus,
+    answerMode: "Gemini with normal fallback",
   });
 });
 
@@ -512,7 +801,8 @@ app.post("/api/reload-knowledge", async (req, res) => {
     message: "School information reloaded",
     ready: knowledgeChunks.length > 0,
     semanticSearchReady,
-    mode: "AI-first RAG with memory",
+    embeddingStatus,
+    answerMode: "Gemini with normal fallback",
   });
 });
 
@@ -539,13 +829,13 @@ app.post("/api/chat", async (req, res) => {
 
     updateMemory(memory, "student", question);
 
-    let relevantChunks = await findSemanticChunks(question, memory);
-
-    if (relevantChunks.length === 0) {
-      relevantChunks = findBasicRelevantChunks(question);
-    }
-
-    const answer = await generateSmartAnswer(question, relevantChunks, memory);
+    const { chunks, searchUsed } = await findBestChunks(question, memory);
+    const answer = await generateSmartAnswer(
+      question,
+      chunks,
+      memory,
+      searchUsed
+    );
 
     updateMemory(memory, "assistant", answer);
 
