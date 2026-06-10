@@ -20,6 +20,9 @@ dotenv.config({
   path: path.join(__dirname, ".env"),
 });
 
+console.log("ENV file path:", path.join(__dirname, ".env"));
+console.log("Gemini key loaded:", process.env.GEMINI_API_KEY ? "YES" : "NO");
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -40,8 +43,9 @@ let loadedPdfName = null;
 let semanticSearchReady = false;
 
 /*
-  Simple in-memory conversation memory.
-  This resets when Render restarts, which is okay for demo.
+  Conversation memory.
+  This is stored in memory only, so it resets when Render restarts.
+  That is fine for demo and testing.
 */
 const conversationMemory = new Map();
 
@@ -123,7 +127,6 @@ function splitTextIntoChunks(text, chunkSize = 1100, overlap = 150) {
   return chunks;
 }
 
-// eslint-disable-next-line no-unused-vars
 function normalizeText(text) {
   return text
     .toLowerCase()
@@ -133,6 +136,8 @@ function normalizeText(text) {
 }
 
 function cleanAnswer(answer) {
+  if (!answer) return "";
+
   return answer
     .replace(/CamTech document/gi, "school information")
     .replace(/the document/gi, "the information")
@@ -142,6 +147,9 @@ function cleanAnswer(answer) {
     .replace(/source/gi, "information")
     .replace(/retrieved information/gi, "information")
     .replace(/context/gi, "information")
+    .replace(/chunks/gi, "information")
+    .replace(/embeddings/gi, "information")
+    .replace(/semantic search/gi, "search")
     .replace(/Q:\s*/gi, "")
     .replace(/A:\s*/gi, "")
     .replace(/--\s*\d+\s*of\s*\d+\s*--/gi, "")
@@ -257,9 +265,10 @@ async function findSemanticChunks(question, memory) {
 
   try {
     const searchQuery = `
-Current question: ${question}
+Current student message:
+${question}
 
-Previous conversation:
+Recent conversation:
 ${memory.history
   .slice(-4)
   .map((item) => `${item.role}: ${item.text}`)
@@ -275,12 +284,86 @@ ${memory.history
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
-      .filter((item) => item.score > 0.35)
+      .filter((item) => item.score > 0.32)
       .map((item) => item.text);
   } catch (error) {
     console.error("Semantic search failed:", error.message);
     return [];
   }
+}
+
+/* =========================
+   Simple Fallback Search
+========================= */
+
+function findBasicRelevantChunks(question) {
+  const questionWords = normalizeText(question)
+    .split(" ")
+    .filter((word) => word.length > 2);
+
+  const scoredChunks = knowledgeChunks.map((chunk) => {
+    const chunkText = normalizeText(chunk);
+    let score = 0;
+
+    for (const word of questionWords) {
+      if (chunkText.includes(word)) {
+        score += 1;
+      }
+    }
+
+    if (isBadChunk(chunk)) {
+      score -= 10;
+    }
+
+    return {
+      text: chunk,
+      score,
+    };
+  });
+
+  return scoredChunks
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((item) => item.text);
+}
+
+/* =========================
+   Gemini Helpers
+========================= */
+
+function extractGeminiText(response) {
+  if (!response) return "";
+
+  if (typeof response.text === "string") {
+    return response.text;
+  }
+
+  if (typeof response.text === "function") {
+    return response.text();
+  }
+
+  const candidateText =
+    response.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text || "")
+      .join("") || "";
+
+  return candidateText;
+}
+
+async function callGemini(model, prompt) {
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+  });
+
+  const answer = extractGeminiText(response);
+
+  if (!answer || !answer.trim()) {
+    throw new Error("Gemini returned an empty answer.");
+  }
+
+  return answer;
 }
 
 /* =========================
@@ -305,26 +388,26 @@ async function generateSmartAnswer(question, relevantChunks, memory) {
   const prompt = `
 You are CamTech Chatbot, a smart and friendly school information assistant.
 
-Your job:
-- Understand the student's message naturally.
-- Use the previous conversation to understand follow-up questions.
-- Use the school information to answer school-related questions.
-- If the message is casual, reply naturally and briefly.
-- If the student asks a follow-up like "what about master?", "how much?", "and scholarship?", understand it from the previous conversation.
-- Do not act like a keyword bot.
-- Do not reveal internal system details.
+Behave like a real AI assistant, not a keyword bot.
 
-Very important rules:
+Main job:
+- Understand the student's message naturally.
+- Use recent conversation to understand follow-up questions.
+- Use school information to answer CamTech-related questions.
+- If the student asks something casual, reply naturally and briefly.
+- If the student asks a vague follow-up, infer what they mean from recent conversation.
+
+Rules:
 - Do not mention PDF, document, source, context, chunks, embeddings, semantic search, or knowledge base.
 - Do not show page numbers.
 - Do not show raw Q/A format.
-- Do not invent exact information if it is not available.
-- If exact information is not available, say that the student should contact the school office for confirmation.
-- Keep answers natural, helpful, and not too long.
+- Do not invent exact details if they are not available.
+- If exact details are not available, say the student should contact the school office for confirmation.
+- Keep answers clear, helpful, and not too long.
 - Use bullet points only when useful.
 - If the question is unclear, ask a helpful follow-up question.
 
-Previous conversation:
+Recent conversation:
 ${recentConversation || "No previous conversation yet."}
 
 School information:
@@ -336,20 +419,19 @@ ${question}
 Reply as CamTech Chatbot:
 `;
 
-  try {
-    console.log("Trying Gemini model: gemini-2.0-flash");
+  const models = ["gemini-2.0-flash", "gemini-2.5-flash"];
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt,
-    });
-
-    return cleanAnswer(response.text);
-  } catch (error) {
-    console.error("Gemini error:", error.message);
-
-    return "Sorry, I could not answer that clearly right now. Please try again or contact the school office for confirmation.";
+  for (const model of models) {
+    try {
+      console.log(`Trying Gemini model: ${model}`);
+      const answer = await callGemini(model, prompt);
+      return cleanAnswer(answer);
+    } catch (error) {
+      console.error(`${model} error:`, error.message);
+    }
   }
+
+  return "Sorry, I could not answer that clearly right now. Please try again or contact the school office for confirmation.";
 }
 
 /* =========================
@@ -409,7 +491,6 @@ app.get("/", (req, res) => {
     aiProvider: ai ? "Google Gemini" : "No Gemini API key",
     ready: knowledgeChunks.length > 0,
     semanticSearchReady,
-    faqCount: 0,
     mode: "AI-first RAG with memory",
   });
 });
@@ -420,7 +501,6 @@ app.get("/api/status", (req, res) => {
     aiProvider: ai ? "Google Gemini" : "No Gemini API key",
     ready: knowledgeChunks.length > 0,
     semanticSearchReady,
-    faqCount: 0,
     mode: "AI-first RAG with memory",
   });
 });
@@ -459,7 +539,12 @@ app.post("/api/chat", async (req, res) => {
 
     updateMemory(memory, "student", question);
 
-    const relevantChunks = await findSemanticChunks(question, memory);
+    let relevantChunks = await findSemanticChunks(question, memory);
+
+    if (relevantChunks.length === 0) {
+      relevantChunks = findBasicRelevantChunks(question);
+    }
+
     const answer = await generateSmartAnswer(question, relevantChunks, memory);
 
     updateMemory(memory, "assistant", answer);
