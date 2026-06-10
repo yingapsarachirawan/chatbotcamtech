@@ -237,7 +237,7 @@ async function loadKnowledgePdf() {
    Text Helpers
 ========================= */
 
-function splitTextIntoChunks(text, chunkSize = 1300, overlap = 180) {
+function splitTextIntoChunks(text, chunkSize = 1000, overlap = 120) {
   const cleanedText = text
     .replace(/\r/g, "\n")
     .replace(/[ \t]+/g, " ")
@@ -436,7 +436,11 @@ function getQuestionKeywords(question) {
     expandedWords.push("bachelor", "undergraduate");
   }
 
-  if (words.includes("phd") || words.includes("doctoral") || words.includes("doctorate")) {
+  if (
+    words.includes("phd") ||
+    words.includes("doctoral") ||
+    words.includes("doctorate")
+  ) {
     expandedWords.push("phd", "doctoral", "doctorate");
   }
 
@@ -457,7 +461,14 @@ function getQuestionKeywords(question) {
     words.includes("address") ||
     words.includes("where")
   ) {
-    expandedWords.push("contact", "phone", "email", "office", "address", "location");
+    expandedWords.push(
+      "contact",
+      "phone",
+      "email",
+      "office",
+      "address",
+      "location"
+    );
   }
 
   return [...new Set(expandedWords)];
@@ -586,7 +597,8 @@ async function getEmbedding(text) {
     contents: text,
   });
 
-  const embedding = response.embeddings?.[0]?.values || response.embedding?.values;
+  const embedding =
+    response.embeddings?.[0]?.values || response.embedding?.values;
 
   if (!embedding) {
     throw new Error("Embedding response was empty.");
@@ -648,7 +660,7 @@ async function findSemanticChunks(question) {
         score: cosineSimilarity(questionEmbedding, chunk.embedding),
       }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
+      .slice(0, 3)
       .filter((item) => item.score > 0.42)
       .map((item) => item.text);
   } catch (error) {
@@ -711,7 +723,7 @@ function findKeywordChunks(question, chunks) {
   return scoredChunks
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
+    .slice(0, 3)
     .map((item) => item.text);
 }
 
@@ -811,21 +823,27 @@ function fallbackAnswer(question, relevantChunks, faqAnswer = null) {
   });
 
   const selectedLines = keywordLines.length > 0 ? keywordLines : lines;
-  const uniqueLines = [...new Set(selectedLines)].slice(0, 4);
+  const uniqueLines = [...new Set(selectedLines)].slice(0, 3);
 
   if (uniqueLines.length === 0) {
     return "I found some related information, but I need a more specific question to answer clearly. You can ask about admission, tuition fees, scholarships, programs, class schedules, English requirements, or contact information.";
   }
 
   return cleanAnswer(
-    `${uniqueLines.map((line) => `- ${line}`).join("\n")}\n\nPlease verify important information with the school office.`
+    `${uniqueLines
+      .map((line) => `- ${line}`)
+      .join("\n")}\n\nPlease verify important information with the school office.`
   );
 }
 
 function getSuggestedQuestions(question) {
   const text = normalizeText(question);
 
-  if (text.includes("admission") || text.includes("requirement") || text.includes("document")) {
+  if (
+    text.includes("admission") ||
+    text.includes("requirement") ||
+    text.includes("document")
+  ) {
     return [
       "What documents are required for admission?",
       "What are the English requirements?",
@@ -855,7 +873,11 @@ function getSuggestedQuestions(question) {
     ];
   }
 
-  if (text.includes("english") || text.includes("ielts") || text.includes("toefl")) {
+  if (
+    text.includes("english") ||
+    text.includes("ielts") ||
+    text.includes("toefl")
+  ) {
     return [
       "What are the admission requirements?",
       "What programs are available?",
@@ -863,7 +885,11 @@ function getSuggestedQuestions(question) {
     ];
   }
 
-  if (text.includes("contact") || text.includes("office") || text.includes("phone")) {
+  if (
+    text.includes("contact") ||
+    text.includes("office") ||
+    text.includes("phone")
+  ) {
     return [
       "What are the admission requirements?",
       "What is the tuition fee?",
@@ -906,25 +932,17 @@ ${faqAnswer.answer}
     : "";
 
   const prompt = `
-You are CamTech Chatbot, a friendly and professional school information assistant.
+You are CamTech Chatbot, a helpful school information assistant.
 
-Answer the student using ONLY the school information below.
+Answer the student using only the school information below.
 
 Rules:
-- Do not mention internal sources.
-- Do not say "document", "PDF", "knowledge base", "context", "source", or "retrieved information".
-- Do not explain where the information came from.
-- Do not invent information.
-- Do not show table of contents.
-- Do not show page separators.
-- Do not show raw Q/A format.
-- Do not show page numbers.
-- Reply naturally like a real school assistant.
-- Keep the answer short but helpful.
-- Use bullets only when useful.
-- If the question is unclear, ask a helpful follow-up question instead of saying you cannot answer.
-- If the answer is unavailable, say:
-"Sorry, I could not find that information. Please contact the school office for confirmation."
+- Reply naturally and clearly.
+- Keep the answer short but useful.
+- Do not mention PDF, document, source, context, or knowledge base.
+- Do not show page numbers or raw Q/A format.
+- If the question is unclear, ask a helpful follow-up question.
+- If the answer is not available, say to contact the school office for confirmation.
 
 ${faqContext}
 
@@ -935,25 +953,14 @@ Student question:
 ${question}
 `;
 
-  const models = [
-    "gemini-2.0-flash",
-    "gemini-2.5-flash",
-    "gemini-3-flash-preview",
-  ];
-
-  for (const model of models) {
-    try {
-      console.log(`Trying Gemini model: ${model}`);
-      const answer = await callGeminiModel(model, prompt);
-      return cleanAnswer(answer);
-    } catch (error) {
-      console.error(`${model} error:`, error.message);
-    }
+  try {
+    console.log("Trying Gemini model: gemini-2.0-flash");
+    const answer = await callGeminiModel("gemini-2.0-flash", prompt);
+    return cleanAnswer(answer);
+  } catch (error) {
+    console.error("Gemini error:", error.message);
+    return fallbackAnswer(question, relevantChunks, faqAnswer);
   }
-
-  console.log("All AI models failed. Using fallback answer.");
-
-  return fallbackAnswer(question, relevantChunks, faqAnswer);
 }
 
 /* =========================
@@ -1071,7 +1078,11 @@ app.post("/api/chat", async (req, res) => {
 
     const faqAnswer = getFaqAnswer(question);
     const relevantChunks = await findBestChunks(question);
-    const answer = await generateGeminiAnswer(question, relevantChunks, faqAnswer);
+    const answer = await generateGeminiAnswer(
+      question,
+      relevantChunks,
+      faqAnswer
+    );
 
     return res.json({
       answer,
