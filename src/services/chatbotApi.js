@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://camtech-chatbot-api.onrender.com/";
+const API_BASE_URL = "https://camtech-chatbot-api.onrender.com";
 
 export async function askChatbot(question) {
   const response = await fetch(`${API_BASE_URL}/api/chat`, {
