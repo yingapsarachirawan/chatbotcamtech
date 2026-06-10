@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 /* global process */
 
 import express from "express";
@@ -124,6 +123,7 @@ function splitTextIntoChunks(text, chunkSize = 1100, overlap = 150) {
   return chunks;
 }
 
+// eslint-disable-next-line no-unused-vars
 function normalizeText(text) {
   return text
     .toLowerCase()
