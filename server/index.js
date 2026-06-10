@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /* global process */
 
 import express from "express";
@@ -20,9 +21,6 @@ dotenv.config({
   path: path.join(__dirname, ".env"),
 });
 
-console.log("ENV file path:", path.join(__dirname, ".env"));
-console.log("Gemini key loaded:", process.env.GEMINI_API_KEY ? "YES" : "NO");
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -42,148 +40,14 @@ let embeddedChunks = [];
 let loadedPdfName = null;
 let semanticSearchReady = false;
 
-/* =========================
-   FAQ Knowledge
-========================= */
-
-const faqKnowledge = [
-  {
-    category: "Admission",
-    questions: [
-      "admission",
-      "admission requirements",
-      "how to apply",
-      "application process",
-      "entry requirement",
-      "what documents are required",
-      "documents for admission",
-      "required documents",
-      "what papers do i need",
-      "what should i prepare",
-      "how can i join",
-      "how do i apply",
-      "enroll",
-      "enrol",
-      "registration",
-    ],
-    answer:
-      "For admission, students may need to prepare academic records, application information, and supporting documents depending on the program level. Please specify Bachelor’s, Master’s, or PhD if you want more specific requirements.",
-  },
-  {
-    category: "Tuition",
-    questions: [
-      "tuition",
-      "tuition fee",
-      "school fee",
-      "how much is the fee",
-      "payment information",
-      "program fee",
-      "cost of study",
-      "study cost",
-      "how much do i need to pay",
-      "how much does it cost",
-      "price",
-      "payment",
-      "pay",
-      "fee",
-      "expensive",
-    ],
-    answer:
-      "For tuition fees, please contact the admissions office for the latest fee information. Tuition fees may depend on the program and study level.",
-  },
-  {
-    category: "Scholarship",
-    questions: [
-      "scholarship",
-      "financial aid",
-      "discount",
-      "scholarship eligibility",
-      "scholarship deadline",
-      "scholarship application",
-      "can i get discount",
-      "can i get support",
-      "study support",
-      "fee discount",
-      "funding",
-    ],
-    answer:
-      "Scholarship information may depend on eligibility, program level, application period, and required documents. Please contact the school office for the latest scholarship details.",
-  },
-  {
-    category: "Programs",
-    questions: [
-      "programs",
-      "courses",
-      "major",
-      "degree programs",
-      "what can i study",
-      "available programs",
-      "academic programs",
-      "what majors are available",
-      "what course do you have",
-      "field of study",
-      "study options",
-    ],
-    answer:
-      "CamTech offers different academic programs, including Bachelor’s, Master’s, PhD, Professional Diploma, and preparatory programs. You can ask about a specific level or field for a clearer answer.",
-  },
-  {
-    category: "English Requirement",
-    questions: [
-      "english requirement",
-      "ielts",
-      "toefl",
-      "english proficiency",
-      "minimum ielts",
-      "minimum toefl",
-      "english score",
-      "language requirement",
-      "do i need ielts",
-      "english test",
-    ],
-    answer:
-      "English requirements depend on the program level. Accepted English proficiency tests may include IELTS, TOEFL, or equivalent results.",
-  },
-  {
-    category: "Contact",
-    questions: [
-      "contact",
-      "phone number",
-      "email",
-      "office",
-      "location",
-      "school address",
-      "how to contact",
-      "contact office",
-      "where is the school",
-      "how can i reach",
-      "call",
-      "address",
-      "map",
-    ],
-    answer:
-      "For official contact information, please contact the school office directly for the most accurate phone number, email, or office support details.",
-  },
-  {
-    category: "Class Schedule",
-    questions: [
-      "class schedule",
-      "timetable",
-      "study time",
-      "class time",
-      "when is class",
-      "schedule",
-      "study schedule",
-      "lesson time",
-      "what time is class",
-    ],
-    answer:
-      "Class schedule information depends on the program, intake, and study level. Please provide the program name or study level so I can help you more accurately.",
-  },
-];
+/*
+  Simple in-memory conversation memory.
+  This resets when Render restarts, which is okay for demo.
+*/
+const conversationMemory = new Map();
 
 /* =========================
-   Load School Information
+   Load PDF Knowledge
 ========================= */
 
 function getKnowledgePdfPath() {
@@ -207,7 +71,7 @@ async function loadKnowledgePdf() {
     const pdfPath = getKnowledgePdfPath();
 
     if (!pdfPath) {
-      console.warn("No school information file found.");
+      console.warn("No school information PDF found.");
       knowledgeChunks = [];
       embeddedChunks = [];
       semanticSearchReady = false;
@@ -215,7 +79,6 @@ async function loadKnowledgePdf() {
     }
 
     const dataBuffer = fs.readFileSync(pdfPath);
-
     const parser = new PDFParse({ data: dataBuffer });
     const result = await parser.getText();
 
@@ -237,7 +100,7 @@ async function loadKnowledgePdf() {
    Text Helpers
 ========================= */
 
-function splitTextIntoChunks(text, chunkSize = 1000, overlap = 120) {
+function splitTextIntoChunks(text, chunkSize = 1100, overlap = 150) {
   const cleanedText = text
     .replace(/\r/g, "\n")
     .replace(/[ \t]+/g, " ")
@@ -269,264 +132,6 @@ function normalizeText(text) {
     .trim();
 }
 
-function isGreeting(question) {
-  const text = normalizeText(question);
-
-  return [
-    "hi",
-    "hello",
-    "hey",
-    "good morning",
-    "good afternoon",
-    "good evening",
-    "morning",
-    "afternoon",
-    "evening",
-  ].includes(text);
-}
-
-function isThanks(question) {
-  const text = normalizeText(question);
-
-  return [
-    "thanks",
-    "thank you",
-    "thank",
-    "thank u",
-    "ty",
-    "okay thanks",
-    "ok thanks",
-    "cool thanks",
-  ].includes(text);
-}
-
-function isAcknowledgement(question) {
-  const text = normalizeText(question);
-
-  return [
-    "ok",
-    "okay",
-    "oh",
-    "ohh",
-    "oh i see",
-    "i see",
-    "got it",
-    "alright",
-    "sure",
-    "cool",
-    "nice",
-    "yes",
-    "yep",
-    "yeah",
-    "understood",
-  ].includes(text);
-}
-
-function isVagueFollowUp(question) {
-  const text = normalizeText(question);
-
-  return [
-    "and",
-    "then",
-    "more",
-    "what else",
-    "also",
-    "continue",
-    "next",
-    "what about",
-    "how about",
-    "and then",
-  ].includes(text);
-}
-
-function isGeneralHelpQuestion(question) {
-  const text = normalizeText(question);
-
-  return (
-    text.includes("what can you do") ||
-    text.includes("help me") ||
-    text.includes("how can you help") ||
-    text.includes("who are you") ||
-    text.includes("faq") ||
-    text.includes("common question")
-  );
-}
-
-function getQuestionKeywords(question) {
-  const stopWords = [
-    "i",
-    "want",
-    "to",
-    "know",
-    "about",
-    "the",
-    "a",
-    "an",
-    "is",
-    "are",
-    "for",
-    "of",
-    "and",
-    "or",
-    "what",
-    "how",
-    "can",
-    "you",
-    "me",
-    "please",
-    "tell",
-    "give",
-    "with",
-    "need",
-    "oh",
-    "ok",
-    "okay",
-    "this",
-    "that",
-    "there",
-    "then",
-    "also",
-    "again",
-  ];
-
-  const words = normalizeText(question)
-    .split(/\s+/)
-    .filter((word) => word.length > 2 && !stopWords.includes(word));
-
-  const expandedWords = [...words];
-
-  if (
-    words.includes("fee") ||
-    words.includes("fees") ||
-    words.includes("tuition") ||
-    words.includes("pay") ||
-    words.includes("price") ||
-    words.includes("cost") ||
-    words.includes("much") ||
-    words.includes("expensive")
-  ) {
-    expandedWords.push("tuition", "fee", "fees", "cost", "payment");
-  }
-
-  if (
-    words.includes("admission") ||
-    words.includes("requirements") ||
-    words.includes("apply") ||
-    words.includes("enroll") ||
-    words.includes("enrol") ||
-    words.includes("paper") ||
-    words.includes("papers")
-  ) {
-    expandedWords.push(
-      "admission",
-      "requirement",
-      "requirements",
-      "application",
-      "documents",
-      "transcript",
-      "certificate"
-    );
-  }
-
-  if (words.includes("master") || words.includes("masters")) {
-    expandedWords.push("master", "masters", "graduate");
-  }
-
-  if (words.includes("bachelor")) {
-    expandedWords.push("bachelor", "undergraduate");
-  }
-
-  if (
-    words.includes("phd") ||
-    words.includes("doctoral") ||
-    words.includes("doctorate")
-  ) {
-    expandedWords.push("phd", "doctoral", "doctorate");
-  }
-
-  if (
-    words.includes("english") ||
-    words.includes("ielts") ||
-    words.includes("toefl") ||
-    words.includes("language")
-  ) {
-    expandedWords.push("english", "ielts", "toefl", "proficiency", "score");
-  }
-
-  if (
-    words.includes("contact") ||
-    words.includes("office") ||
-    words.includes("phone") ||
-    words.includes("email") ||
-    words.includes("address") ||
-    words.includes("where")
-  ) {
-    expandedWords.push(
-      "contact",
-      "phone",
-      "email",
-      "office",
-      "address",
-      "location"
-    );
-  }
-
-  return [...new Set(expandedWords)];
-}
-
-function getFaqAnswer(question) {
-  const questionText = normalizeText(question);
-
-  let bestMatch = null;
-  let bestScore = 0;
-
-  for (const faq of faqKnowledge) {
-    let score = 0;
-
-    for (const phrase of faq.questions) {
-      const phraseText = normalizeText(phrase);
-
-      if (questionText.includes(phraseText)) {
-        score += 5;
-      }
-
-      const phraseWords = phraseText.split(/\s+/);
-
-      for (const word of phraseWords) {
-        if (word.length > 2 && questionText.includes(word)) {
-          score += 1;
-        }
-      }
-    }
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = faq;
-    }
-  }
-
-  if (!bestMatch || bestScore < 3) {
-    return null;
-  }
-
-  return {
-    category: bestMatch.category,
-    answer: bestMatch.answer,
-  };
-}
-
-function isTableOfContentsChunk(chunk) {
-  const text = chunk.toLowerCase();
-
-  return (
-    text.includes("table of contents") ||
-    text.includes("official knowledge base") ||
-    text.includes("option 1: single optimized pdf") ||
-    text.includes("page 2") ||
-    text.includes("page 5")
-  );
-}
-
 function cleanAnswer(answer) {
   return answer
     .replace(/CamTech document/gi, "school information")
@@ -536,6 +141,7 @@ function cleanAnswer(answer) {
     .replace(/knowledge base/gi, "information")
     .replace(/source/gi, "information")
     .replace(/retrieved information/gi, "information")
+    .replace(/context/gi, "information")
     .replace(/Q:\s*/gi, "")
     .replace(/A:\s*/gi, "")
     .replace(/--\s*\d+\s*of\s*\d+\s*--/gi, "")
@@ -547,22 +153,20 @@ function cleanAnswer(answer) {
     .trim();
 }
 
-function cleanPdfLine(line) {
-  return line
-    .replace(/Q:\s*/gi, "")
-    .replace(/A:\s*/gi, "")
-    .replace(/--\s*\d+\s*of\s*\d+\s*--/gi, "")
-    .replace(/_{5,}/g, "")
-    .replace(/={3,}/g, "")
-    .replace(/-{3,}/g, "")
-    .replace(/\.+\s*Page\s*\d+/gi, "")
-    .replace(/Page\s*\d+/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+function isBadChunk(chunk) {
+  const text = chunk.toLowerCase();
+
+  return (
+    text.includes("table of contents") ||
+    text.includes("official knowledge base") ||
+    text.includes("option 1: single optimized pdf") ||
+    text.includes("page 2") ||
+    text.includes("page 5")
+  );
 }
 
 /* =========================
-   Semantic RAG Helpers
+   Embedding + Semantic Search
 ========================= */
 
 function cosineSimilarity(vectorA, vectorB) {
@@ -622,7 +226,7 @@ async function buildSemanticIndex() {
     for (let i = 0; i < knowledgeChunks.length; i += 1) {
       const chunk = knowledgeChunks[i];
 
-      if (isTableOfContentsChunk(chunk)) {
+      if (isBadChunk(chunk)) {
         continue;
       }
 
@@ -646,13 +250,23 @@ async function buildSemanticIndex() {
   }
 }
 
-async function findSemanticChunks(question) {
+async function findSemanticChunks(question, memory) {
   if (!semanticSearchReady || embeddedChunks.length === 0 || !ai) {
     return [];
   }
 
   try {
-    const questionEmbedding = await getEmbedding(question);
+    const searchQuery = `
+Current question: ${question}
+
+Previous conversation:
+${memory.history
+  .slice(-4)
+  .map((item) => `${item.role}: ${item.text}`)
+  .join("\n")}
+`;
+
+    const questionEmbedding = await getEmbedding(searchQuery);
 
     return embeddedChunks
       .map((chunk) => ({
@@ -660,8 +274,8 @@ async function findSemanticChunks(question) {
         score: cosineSimilarity(questionEmbedding, chunk.embedding),
       }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .filter((item) => item.score > 0.42)
+      .slice(0, 4)
+      .filter((item) => item.score > 0.35)
       .map((item) => item.text);
   } catch (error) {
     console.error("Semantic search failed:", error.message);
@@ -670,233 +284,79 @@ async function findSemanticChunks(question) {
 }
 
 /* =========================
-   Keyword Fallback Search
+   AI-First Answer Generation
 ========================= */
 
-function findKeywordChunks(question, chunks) {
-  const questionText = normalizeText(question);
-  const keywords = getQuestionKeywords(question);
-
-  const importantPhrases = [
-    "tuition fee",
-    "tuition fees",
-    "admission requirements",
-    "application requirements",
-    "english proficiency",
-    "master degree",
-    "bachelor degree",
-    "doctoral degree",
-    "phd programs",
-    "scholarship",
-    "contact information",
-    "academic programs",
-    "class schedule",
-    "required documents",
-  ];
-
-  const scoredChunks = chunks.map((chunk) => {
-    const chunkText = normalizeText(chunk);
-    let score = 0;
-
-    for (const keyword of keywords) {
-      if (chunkText.includes(keyword)) {
-        score += 2;
-      }
-    }
-
-    for (const phrase of importantPhrases) {
-      if (questionText.includes(phrase) && chunkText.includes(phrase)) {
-        score += 8;
-      }
-    }
-
-    if (isTableOfContentsChunk(chunk)) {
-      score -= 25;
-    }
-
-    return {
-      text: chunk,
-      score,
-    };
-  });
-
-  return scoredChunks
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-    .map((item) => item.text);
-}
-
-async function findBestChunks(question) {
-  const semanticChunks = await findSemanticChunks(question);
-
-  if (semanticChunks.length > 0) {
-    return semanticChunks;
+async function generateSmartAnswer(question, relevantChunks, memory) {
+  if (!ai) {
+    return "Sorry, the AI service is not available right now. Please contact the school office for confirmation.";
   }
 
-  return findKeywordChunks(question, knowledgeChunks);
+  const schoolInformation =
+    relevantChunks.length > 0
+      ? relevantChunks.join("\n\n---\n\n")
+      : "No strongly related school information was found.";
+
+  const recentConversation = memory.history
+    .slice(-6)
+    .map((item) => `${item.role}: ${item.text}`)
+    .join("\n");
+
+  const prompt = `
+You are CamTech Chatbot, a smart and friendly school information assistant.
+
+Your job:
+- Understand the student's message naturally.
+- Use the previous conversation to understand follow-up questions.
+- Use the school information to answer school-related questions.
+- If the message is casual, reply naturally and briefly.
+- If the student asks a follow-up like "what about master?", "how much?", "and scholarship?", understand it from the previous conversation.
+- Do not act like a keyword bot.
+- Do not reveal internal system details.
+
+Very important rules:
+- Do not mention PDF, document, source, context, chunks, embeddings, semantic search, or knowledge base.
+- Do not show page numbers.
+- Do not show raw Q/A format.
+- Do not invent exact information if it is not available.
+- If exact information is not available, say that the student should contact the school office for confirmation.
+- Keep answers natural, helpful, and not too long.
+- Use bullet points only when useful.
+- If the question is unclear, ask a helpful follow-up question.
+
+Previous conversation:
+${recentConversation || "No previous conversation yet."}
+
+School information:
+${schoolInformation}
+
+Student message:
+${question}
+
+Reply as CamTech Chatbot:
+`;
+
+  try {
+    console.log("Trying Gemini model: gemini-2.0-flash");
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    });
+
+    return cleanAnswer(response.text);
+  } catch (error) {
+    console.error("Gemini error:", error.message);
+
+    return "Sorry, I could not answer that clearly right now. Please try again or contact the school office for confirmation.";
+  }
 }
 
 /* =========================
-   Clean Fallback Answer
+   Suggested Questions
 ========================= */
 
-function fallbackAnswer(question, relevantChunks, faqAnswer = null) {
-  if (faqAnswer) {
-    return cleanAnswer(faqAnswer.answer);
-  }
-
-  if (relevantChunks.length === 0) {
-    return "Could you please be a bit more specific? You can ask about admission, tuition fees, scholarships, programs, class schedules, English requirements, or contact information.";
-  }
-
-  const text = relevantChunks.join("\n");
-  const normalizedQuestion = normalizeText(question);
-
-  if (
-    normalizedQuestion.includes("tuition") ||
-    normalizedQuestion.includes("fee") ||
-    normalizedQuestion.includes("cost") ||
-    normalizedQuestion.includes("pay") ||
-    normalizedQuestion.includes("much") ||
-    normalizedQuestion.includes("expensive")
-  ) {
-    return "For tuition fees, please contact the admissions office for the latest fee information. Tuition fees may depend on the program and study level.";
-  }
-
-  if (
-    normalizedQuestion.includes("admission") ||
-    normalizedQuestion.includes("apply") ||
-    normalizedQuestion.includes("requirement") ||
-    normalizedQuestion.includes("document") ||
-    normalizedQuestion.includes("paper")
-  ) {
-    return "For admission, students may need to prepare academic records, application information, and supporting documents depending on the program level. Please specify Bachelor’s, Master’s, or PhD if you want more specific requirements.";
-  }
-
-  if (
-    normalizedQuestion.includes("english") ||
-    normalizedQuestion.includes("ielts") ||
-    normalizedQuestion.includes("toefl") ||
-    normalizedQuestion.includes("language")
-  ) {
-    return "English requirements depend on the program level. Accepted English proficiency tests may include IELTS, TOEFL, or equivalent results.";
-  }
-
-  if (
-    normalizedQuestion.includes("scholarship") ||
-    normalizedQuestion.includes("discount") ||
-    normalizedQuestion.includes("financial")
-  ) {
-    return "Scholarship information may depend on eligibility, program level, application period, and required documents. Please contact the school office for the latest scholarship details.";
-  }
-
-  if (
-    normalizedQuestion.includes("contact") ||
-    normalizedQuestion.includes("phone") ||
-    normalizedQuestion.includes("email") ||
-    normalizedQuestion.includes("office") ||
-    normalizedQuestion.includes("call")
-  ) {
-    return "For official contact information, please contact the school office directly for the most accurate phone number, email, or office support details.";
-  }
-
-  const qaMatch = text.match(/Q:\s*(.*?)\s*A:\s*(.*?)(?:\n|$)/is);
-
-  if (qaMatch?.[2]) {
-    return cleanAnswer(qaMatch[2]);
-  }
-
-  const keywords = getQuestionKeywords(question);
-  const lines = text
-    .split(/\n+/)
-    .map(cleanPdfLine)
-    .filter((line) => line.length > 8)
-    .filter((line) => !line.toLowerCase().includes("table of contents"))
-    .filter((line) => !line.toLowerCase().includes("official knowledge base"))
-    .filter((line) => !line.toLowerCase().includes("option 1"))
-    .filter((line) => !line.match(/^page\s*\d+$/i));
-
-  const keywordLines = lines.filter((line) => {
-    const lineText = normalizeText(line);
-    return keywords.some((keyword) => lineText.includes(keyword));
-  });
-
-  const selectedLines = keywordLines.length > 0 ? keywordLines : lines;
-  const uniqueLines = [...new Set(selectedLines)].slice(0, 3);
-
-  if (uniqueLines.length === 0) {
-    return "I found some related information, but I need a more specific question to answer clearly. You can ask about admission, tuition fees, scholarships, programs, class schedules, English requirements, or contact information.";
-  }
-
-  return cleanAnswer(
-    `${uniqueLines
-      .map((line) => `- ${line}`)
-      .join("\n")}\n\nPlease verify important information with the school office.`
-  );
-}
-
-function getSuggestedQuestions(question) {
-  const text = normalizeText(question);
-
-  if (
-    text.includes("admission") ||
-    text.includes("requirement") ||
-    text.includes("document")
-  ) {
-    return [
-      "What documents are required for admission?",
-      "What are the English requirements?",
-      "How can I contact the office?",
-    ];
-  }
-
-  if (
-    text.includes("tuition") ||
-    text.includes("fee") ||
-    text.includes("cost") ||
-    text.includes("much") ||
-    text.includes("pay")
-  ) {
-    return [
-      "Are there any scholarships?",
-      "What programs are available?",
-      "How can I contact the office?",
-    ];
-  }
-
-  if (text.includes("scholarship") || text.includes("discount")) {
-    return [
-      "What are the admission requirements?",
-      "What documents are required?",
-      "What is the tuition fee?",
-    ];
-  }
-
-  if (
-    text.includes("english") ||
-    text.includes("ielts") ||
-    text.includes("toefl")
-  ) {
-    return [
-      "What are the admission requirements?",
-      "What programs are available?",
-      "How can I contact the office?",
-    ];
-  }
-
-  if (
-    text.includes("contact") ||
-    text.includes("office") ||
-    text.includes("phone")
-  ) {
-    return [
-      "What are the admission requirements?",
-      "What is the tuition fee?",
-      "What programs are available?",
-    ];
-  }
-
+function getSuggestedQuestions() {
   return [
     "What are the admission requirements?",
     "I want to know about tuition fee",
@@ -905,61 +365,36 @@ function getSuggestedQuestions(question) {
 }
 
 /* =========================
-   AI Answer Generation
+   Memory Helpers
 ========================= */
 
-async function callGeminiModel(model, prompt) {
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-  });
-
-  return response.text;
+function getSessionId(req) {
+  return (
+    req.body.sessionId ||
+    req.headers["x-session-id"] ||
+    req.ip ||
+    "default-session"
+  );
 }
 
-async function generateGeminiAnswer(question, relevantChunks, faqAnswer = null) {
-  if (!ai) {
-    return fallbackAnswer(question, relevantChunks, faqAnswer);
+function getMemory(sessionId) {
+  if (!conversationMemory.has(sessionId)) {
+    conversationMemory.set(sessionId, {
+      history: [],
+    });
   }
 
-  const context = relevantChunks.join("\n\n---\n\n");
+  return conversationMemory.get(sessionId);
+}
 
-  const faqContext = faqAnswer
-    ? `
-Relevant school FAQ:
-${faqAnswer.answer}
-`
-    : "";
+function updateMemory(memory, role, text) {
+  memory.history.push({
+    role,
+    text,
+  });
 
-  const prompt = `
-You are CamTech Chatbot, a helpful school information assistant.
-
-Answer the student using only the school information below.
-
-Rules:
-- Reply naturally and clearly.
-- Keep the answer short but useful.
-- Do not mention PDF, document, source, context, or knowledge base.
-- Do not show page numbers or raw Q/A format.
-- If the question is unclear, ask a helpful follow-up question.
-- If the answer is not available, say to contact the school office for confirmation.
-
-${faqContext}
-
-School information:
-${context}
-
-Student question:
-${question}
-`;
-
-  try {
-    console.log("Trying Gemini model: gemini-2.0-flash");
-    const answer = await callGeminiModel("gemini-2.0-flash", prompt);
-    return cleanAnswer(answer);
-  } catch (error) {
-    console.error("Gemini error:", error.message);
-    return fallbackAnswer(question, relevantChunks, faqAnswer);
+  if (memory.history.length > 10) {
+    memory.history = memory.history.slice(-10);
   }
 }
 
@@ -974,7 +409,8 @@ app.get("/", (req, res) => {
     aiProvider: ai ? "Google Gemini" : "No Gemini API key",
     ready: knowledgeChunks.length > 0,
     semanticSearchReady,
-    faqCount: faqKnowledge.length,
+    faqCount: 0,
+    mode: "AI-first RAG with memory",
   });
 });
 
@@ -984,7 +420,8 @@ app.get("/api/status", (req, res) => {
     aiProvider: ai ? "Google Gemini" : "No Gemini API key",
     ready: knowledgeChunks.length > 0,
     semanticSearchReady,
-    faqCount: faqKnowledge.length,
+    faqCount: 0,
+    mode: "AI-first RAG with memory",
   });
 });
 
@@ -995,7 +432,7 @@ app.post("/api/reload-knowledge", async (req, res) => {
     message: "School information reloaded",
     ready: knowledgeChunks.length > 0,
     semanticSearchReady,
-    faqCount: faqKnowledge.length,
+    mode: "AI-first RAG with memory",
   });
 });
 
@@ -1009,65 +446,6 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    if (isGreeting(question)) {
-      return res.json({
-        answer:
-          "Hello! I’m CamTech Chatbot. You can ask me about admission requirements, tuition fees, scholarships, academic programs, class schedules, contact information, or general FAQs.",
-        suggestedQuestions: [
-          "What are the admission requirements?",
-          "I want to know about tuition fee",
-          "What are the English requirements?",
-        ],
-      });
-    }
-
-    if (isThanks(question)) {
-      return res.json({
-        answer: "You’re welcome! Is there anything else you would like to know?",
-        suggestedQuestions: [
-          "What programs are available?",
-          "How can I contact the office?",
-          "What is the tuition fee?",
-        ],
-      });
-    }
-
-    if (isAcknowledgement(question)) {
-      return res.json({
-        answer:
-          "Sure. You can continue asking about admission, tuition fees, scholarships, programs, class schedules, English requirements, or contact information.",
-        suggestedQuestions: [
-          "What are the admission requirements?",
-          "I want to know about tuition fee",
-          "How can I contact the office?",
-        ],
-      });
-    }
-
-    if (isVagueFollowUp(question)) {
-      return res.json({
-        answer:
-          "Sure — what would you like to know more about? You can ask about admission requirements, tuition fees, scholarships, programs, class schedules, English requirements, or contact information.",
-        suggestedQuestions: [
-          "I want to know about tuition fee",
-          "What are the admission requirements?",
-          "What are the English requirements?",
-        ],
-      });
-    }
-
-    if (isGeneralHelpQuestion(question)) {
-      return res.json({
-        answer:
-          "I can help answer common CamTech questions, including:\n\n- Admission requirements\n- Tuition fees\n- Scholarship information\n- Available programs\n- English requirements\n- Class schedules\n- Contact information\n- General FAQs",
-        suggestedQuestions: [
-          "What are the admission requirements?",
-          "I want to know about tuition fee",
-          "Scholarship details",
-        ],
-      });
-    }
-
     if (knowledgeChunks.length === 0) {
       return res.json({
         answer:
@@ -1076,17 +454,19 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    const faqAnswer = getFaqAnswer(question);
-    const relevantChunks = await findBestChunks(question);
-    const answer = await generateGeminiAnswer(
-      question,
-      relevantChunks,
-      faqAnswer
-    );
+    const sessionId = getSessionId(req);
+    const memory = getMemory(sessionId);
+
+    updateMemory(memory, "student", question);
+
+    const relevantChunks = await findSemanticChunks(question, memory);
+    const answer = await generateSmartAnswer(question, relevantChunks, memory);
+
+    updateMemory(memory, "assistant", answer);
 
     return res.json({
       answer,
-      suggestedQuestions: getSuggestedQuestions(question),
+      suggestedQuestions: getSuggestedQuestions(),
     });
   } catch (error) {
     console.error("Chat error:", error.message);
