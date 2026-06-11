@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
+import "./App.css";
 import Sidebar from "./components/Sidebar";
 import ChatHeader from "./components/ChatHeader";
 import EmptyState from "./components/EmptyState";
 import ChatMessages from "./components/ChatMessages";
 import ChatInput from "./components/ChatInput";
+import EnquiryForm from "./components/EnquiryForm";
 import { askChatbot, getChatbotStatus } from "./services/chatbotApi";
 
 export default function App() {
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEnquiryForm, setShowEnquiryForm] = useState(false);
   const [systemStatus, setSystemStatus] = useState({
     apiRunning: false,
     aiProvider: "Checking...",
@@ -37,6 +40,10 @@ export default function App() {
 
     loadStatus();
   }, []);
+
+  function openEnquiryForm() {
+    setShowEnquiryForm(true);
+  }
 
   async function addMessage(text) {
     const userMessage = {
@@ -102,7 +109,6 @@ export default function App() {
 
   function handleQuickQuestion(question) {
     if (isLoading) return;
-
     addMessage(question);
   }
 
@@ -111,12 +117,28 @@ export default function App() {
     setInputValue("");
   }
 
+  function handleEnquirySubmitted() {
+    const successMessage = {
+      id: crypto.randomUUID(),
+      sender: "bot",
+      text:
+        "Thank you. Your enquiry has been submitted. CamTech admissions can follow up with you soon.",
+      suggestedQuestions: [],
+    };
+
+    setMessages((current) => [...current, successMessage]);
+  }
+
   return (
     <div className="app-shell">
-      <Sidebar onNewChat={handleNewChat} systemStatus={systemStatus} />
+      <Sidebar
+        onNewChat={handleNewChat}
+        onQuickQuestion={handleQuickQuestion}
+        systemStatus={systemStatus}
+      />
 
       <main className="chat-layout">
-        <ChatHeader />
+        <ChatHeader onOpenEnquiry={openEnquiryForm} />
 
         <section className="chat-body">
           {messages.length === 0 ? (
@@ -134,9 +156,17 @@ export default function App() {
             onSend={handleSend}
             disabled={isLoading}
             onQuickQuestion={handleQuickQuestion}
+            onOpenEnquiry={openEnquiryForm}
           />
         </section>
       </main>
+
+      {showEnquiryForm && (
+        <EnquiryForm
+          onClose={() => setShowEnquiryForm(false)}
+          onSubmitted={handleEnquirySubmitted}
+        />
+      )}
     </div>
   );
 }

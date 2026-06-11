@@ -2,48 +2,34 @@ import {
   GraduationCap,
   Wallet,
   BadgePercent,
-  CalendarDays,
-  Phone,
-  CircleHelp,
+  Languages,
   School,
 } from "lucide-react";
 
 const quickQuestions = [
   {
-    title: "Admission Requirements",
-    description: "Documents and application process",
+    title: "Admission",
+    description: "Requirements and application process",
     icon: GraduationCap,
-    question: "Admission Requirements",
+    question: "What are the admission requirements?",
   },
   {
-    title: "Tuition Fee",
-    description: "School fee and payment information",
+    title: "Tuition Fees",
+    description: "Fee and payment information",
     icon: Wallet,
     question: "I want to know about tuition fee",
   },
   {
-    title: "Scholarship",
-    description: "Eligibility and deadlines",
+    title: "Scholarships",
+    description: "Available support and eligibility",
     icon: BadgePercent,
     question: "Scholarship details",
   },
   {
-    title: "Class Schedule",
-    description: "Study time and timetable information",
-    icon: CalendarDays,
-    question: "Class schedule",
-  },
-  {
-    title: "Contact Office",
-    description: "Phone, email, and office support",
-    icon: Phone,
-    question: "Contact office",
-  },
-  {
-    title: "General FAQ",
-    description: "Common school questions",
-    icon: CircleHelp,
-    question: "General FAQ",
+    title: "English Requirement",
+    description: "IELTS, TOEFL, and English entry needs",
+    icon: Languages,
+    question: "What are the English requirements?",
   },
 ];
 
@@ -52,15 +38,16 @@ export default function EmptyState({ onQuickQuestion }) {
     <div className="empty-state">
       <div className="hero-card">
         <div className="hero-icon">
-          <School size={26} />
+          <School size={23} />
         </div>
 
-        <h1>How can CamTech Chatbot help you?</h1>
+        <p className="hero-kicker">CamTech Assistant</p>
 
-        <p>
-          Ask questions about admission, tuition fees, scholarships, class
-          schedules, school services, or information from your CamTech Q&amp;A
-          document.
+        <h1>How can I help you today?</h1>
+
+        <p className="hero-description">
+          Ask about admissions, programs, tuition fees, scholarships, English
+          requirements, or campus information.
         </p>
 
         <div className="quick-card-grid">
@@ -75,7 +62,7 @@ export default function EmptyState({ onQuickQuestion }) {
                 onClick={() => onQuickQuestion(item.question)}
               >
                 <div className="quick-card-icon">
-                  <Icon size={18} />
+                  <Icon size={17} />
                 </div>
 
                 <div>

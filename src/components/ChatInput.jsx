@@ -5,7 +5,6 @@ import {
   Wallet,
   BadgePercent,
   CalendarDays,
-  Phone,
   Languages,
 } from "lucide-react";
 
@@ -26,17 +25,12 @@ const faqButtons = [
     icon: BadgePercent,
   },
   {
-    label: "Class Schedule",
+    label: "Schedule",
     question: "Class schedule",
     icon: CalendarDays,
   },
   {
-    label: "Contact",
-    question: "Contact office",
-    icon: Phone,
-  },
-  {
-    label: "English Requirement",
+    label: "English",
     question: "What are the English requirements?",
     icon: Languages,
   },
@@ -48,6 +42,7 @@ export default function ChatInput({
   onSend,
   disabled,
   onQuickQuestion,
+  onOpenEnquiry,
 }) {
   return (
     <div className="chat-input-area">
@@ -63,8 +58,8 @@ export default function ChatInput({
               disabled={disabled}
               onClick={() => onQuickQuestion(item.question)}
             >
-              <Icon size={15} />
-              {item.label}
+              <Icon size={14} />
+              <span>{item.label}</span>
             </button>
           );
         })}
@@ -72,14 +67,19 @@ export default function ChatInput({
 
       <form className="chat-input-form" onSubmit={onSend}>
         <div className="chat-input-shell">
-          <button type="button" className="input-action-button">
-            <Plus size={20} />
+          <button
+            type="button"
+            className="input-action-button"
+            title="Contact admissions"
+            onClick={onOpenEnquiry}
+          >
+            <Plus size={19} />
           </button>
 
           <input
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="Ask something about CamTech..."
+            placeholder="Ask about CamTech admissions, programs, or fees..."
             disabled={disabled}
           />
 
@@ -88,7 +88,7 @@ export default function ChatInput({
             className="send-button"
             disabled={disabled || !value.trim()}
           >
-            <SendHorizontal size={20} />
+            <SendHorizontal size={19} />
           </button>
         </div>
       </form>

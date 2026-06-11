@@ -7,19 +7,27 @@ export default function MessageBubble({ message, onQuickQuestion }) {
   const isThinking = message.text === "Thinking...";
 
   return (
-    <div className={`chat-message ${isUser ? "chat-message-user" : "chat-message-bot"}`}>
+    <div
+      className={`chat-message ${
+        isUser ? "chat-message-user" : "chat-message-bot"
+      }`}
+    >
       {!isUser && (
         <div className="chat-avatar">
-          <Bot size={16} />
+          <Bot size={15} />
         </div>
       )}
 
       <div className="chat-message-main">
         {!isUser && <div className="chat-sender-name">CamTech Assistant</div>}
 
-        <div className={`chat-bubble ${isUser ? "chat-bubble-user" : "chat-bubble-bot"}`}>
+        <div
+          className={`chat-bubble ${
+            isUser ? "chat-bubble-user" : "chat-bubble-bot"
+          }`}
+        >
           {isThinking ? (
-            <div className="typing-dots">
+            <div className="typing-dots" aria-label="CamTech is typing">
               <span></span>
               <span></span>
               <span></span>
@@ -34,22 +42,20 @@ export default function MessageBubble({ message, onQuickQuestion }) {
         </div>
 
         {!isUser && !isThinking && message.suggestedQuestions?.length > 0 && (
-          <div className="answer-footer">
-            <div className="suggested-block">
-              <div className="suggested-title">You may also ask</div>
+          <div className="suggested-block">
+            <p className="suggested-title">Suggested questions</p>
 
-              <div className="follow-up-row">
-                {message.suggestedQuestions.map((question) => (
-                  <button
-                    key={question}
-                    type="button"
-                    className="follow-up-chip"
-                    onClick={() => onQuickQuestion(question)}
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
+            <div className="follow-up-row">
+              {message.suggestedQuestions.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  className="follow-up-chip"
+                  onClick={() => onQuickQuestion(question)}
+                >
+                  {question}
+                </button>
+              ))}
             </div>
           </div>
         )}
