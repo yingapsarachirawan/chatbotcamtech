@@ -1,38 +1,32 @@
 import {
-  Plus,
-  SendHorizontal,
-  GraduationCap,
-  Wallet,
-  BadgePercent,
   CalendarDays,
+  GraduationCap,
   Languages,
+  Send,
+  WalletCards,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 
-const faqButtons = [
+const faqPrompts = [
   {
     label: "Admission",
-    question: "What are the admission requirements?",
     icon: GraduationCap,
+    question: "What are the admission requirements?",
   },
   {
     label: "Tuition Fee",
+    icon: WalletCards,
     question: "I want to know about tuition fee",
-    icon: Wallet,
-  },
-  {
-    label: "Scholarship",
-    question: "Scholarship details",
-    icon: BadgePercent,
   },
   {
     label: "Schedule",
-    question: "Class schedule",
     icon: CalendarDays,
+    question: "What is the study schedule?",
   },
   {
     label: "English",
-    question: "What are the English requirements?",
     icon: Languages,
+    question: "What are the English requirements?",
   },
 ];
 
@@ -41,45 +35,66 @@ export default function ChatInput({
   onChange,
   onSend,
   disabled,
+  isSupportMode,
   onQuickQuestion,
-  onOpenEnquiry,
 }) {
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+  }, [value]);
+
+  function handleKeyDown(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+
+      if (!disabled && value.trim()) {
+        event.currentTarget.form?.requestSubmit();
+      }
+    }
+  }
+
   return (
     <div className="chat-input-area">
-      <div className="faq-button-row">
-        {faqButtons.map((item) => {
-          const Icon = item.icon;
+      {!isSupportMode && (
+        <div className="faq-button-row">
+          {faqPrompts.map((item) => {
+            const Icon = item.icon;
 
-          return (
-            <button
-              key={item.label}
-              type="button"
-              className="faq-chip"
-              disabled={disabled}
-              onClick={() => onQuickQuestion(item.question)}
-            >
-              <Icon size={14} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={item.label}
+                type="button"
+                className="faq-chip"
+                onClick={() => onQuickQuestion(item.question)}
+                disabled={disabled}
+              >
+                <Icon size={14} />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <form className="chat-input-form" onSubmit={onSend}>
-        <div className="chat-input-shell">
-          <button
-            type="button"
-            className="input-action-button"
-            title="Contact admissions"
-            onClick={onOpenEnquiry}
-          >
-            <Plus size={19} />
-          </button>
-
-          <input
+        <div className="chat-input-shell multiline no-left-action">
+          <textarea
+            ref={textareaRef}
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="Ask about CamTech admissions, programs, or fees..."
+            onKeyDown={handleKeyDown}
+            placeholder={
+              isSupportMode
+                ? "Write a message to admissions... Shift + Enter for new line"
+                : "Ask about CamTech admissions, programs, or fees... Shift + Enter for new line"
+            }
+            rows={1}
             disabled={disabled}
           />
 
@@ -87,8 +102,9 @@ export default function ChatInput({
             type="submit"
             className="send-button"
             disabled={disabled || !value.trim()}
+            aria-label="Send message"
           >
-            <SendHorizontal size={19} />
+            <Send size={19} />
           </button>
         </div>
       </form>

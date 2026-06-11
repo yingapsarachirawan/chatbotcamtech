@@ -1,22 +1,29 @@
-export default function ChatHeader({ onOpenEnquiry }) {
+export default function ChatHeader({ mode, onOpenEnquiry, onBackToAI }) {
+  const isSupportMode = mode === "support";
+
   return (
     <header className="chat-header">
-      <div className="chat-header-content">
-        <p className="chat-header-kicker">CamTech Assistant</p>
-        <h1>CamTech Chatbot</h1>
-        <p className="chat-header-subtitle">
-          Ask about admissions, programs, fees, scholarships, and student
-          services.
-        </p>
+      <div>
+        <p>{isSupportMode ? "Admissions support" : "CamTech assistant"}</p>
+        <h1>{isSupportMode ? "Admissions Chat" : "CamTech Chatbot"}</h1>
+        <span>
+          {isSupportMode
+            ? "You are now messaging CamTech admissions support."
+            : "Ask about admissions, programs, fees, scholarships, and student services."}
+        </span>
       </div>
 
-      <button
-        type="button"
-        className="header-contact-button"
-        onClick={onOpenEnquiry}
-      >
-        Contact Admissions
-      </button>
+      <div className="chat-header-actions">
+        {isSupportMode && (
+          <button type="button" className="secondary-pill" onClick={onBackToAI}>
+            Back to AI
+          </button>
+        )}
+
+        <button type="button" className="primary-pill" onClick={onOpenEnquiry}>
+          {isSupportMode ? "Refresh Support" : "Contact Admissions"}
+        </button>
+      </div>
     </header>
   );
 }

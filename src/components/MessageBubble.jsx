@@ -1,9 +1,10 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot } from "lucide-react";
+import { Bot, Headphones } from "lucide-react";
 
 export default function MessageBubble({ message, onQuickQuestion }) {
   const isUser = message.sender === "user";
+  const isAdmin = message.sender === "admin";
   const isThinking = message.text === "Thinking...";
 
   return (
@@ -14,12 +15,16 @@ export default function MessageBubble({ message, onQuickQuestion }) {
     >
       {!isUser && (
         <div className="chat-avatar">
-          <Bot size={15} />
+          {isAdmin ? <Headphones size={15} /> : <Bot size={15} />}
         </div>
       )}
 
       <div className="chat-message-main">
-        {!isUser && <div className="chat-sender-name">CamTech Assistant</div>}
+        {!isUser && (
+          <div className="chat-sender-name">
+            {isAdmin ? "CamTech Admissions" : "CamTech Assistant"}
+          </div>
+        )}
 
         <div
           className={`chat-bubble ${
@@ -41,7 +46,7 @@ export default function MessageBubble({ message, onQuickQuestion }) {
           )}
         </div>
 
-        {!isUser && !isThinking && message.suggestedQuestions?.length > 0 && (
+        {!isUser && !isAdmin && !isThinking && message.suggestedQuestions?.length > 0 && (
           <div className="suggested-block">
             <p className="suggested-title">Suggested questions</p>
 

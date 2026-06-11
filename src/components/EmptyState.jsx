@@ -4,6 +4,7 @@ import {
   BadgePercent,
   Languages,
   School,
+  Headphones,
 } from "lucide-react";
 
 const quickQuestions = [
@@ -33,7 +34,7 @@ const quickQuestions = [
   },
 ];
 
-export default function EmptyState({ onQuickQuestion }) {
+export default function EmptyState({ onQuickQuestion, onOpenEnquiry }) {
   return (
     <div className="empty-state">
       <div className="hero-card">
@@ -46,9 +47,16 @@ export default function EmptyState({ onQuickQuestion }) {
         <h1>How can I help you today?</h1>
 
         <p className="hero-description">
-          Ask about admissions, programs, tuition fees, scholarships, English
-          requirements, or campus information.
+          Ask the AI assistant about CamTech information or connect with
+          admissions support for personal enquiries.
         </p>
+
+        <div className="hero-actions">
+          <button type="button" className="primary-pill" onClick={onOpenEnquiry}>
+            <Headphones size={16} />
+            Talk to Admissions
+          </button>
+        </div>
 
         <div className="quick-card-grid">
           {quickQuestions.map((item) => {

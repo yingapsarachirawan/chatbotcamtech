@@ -4,6 +4,8 @@ import {
   Wallet,
   BadgePercent,
   Languages,
+  Headphones,
+  Trash2,
 } from "lucide-react";
 import logo from "../assets/logo.jpg";
 
@@ -30,25 +32,116 @@ const quickTopics = [
   },
 ];
 
-export default function Sidebar({ onNewChat, onQuickQuestion, systemStatus }) {
+function formatHistoryTime(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+
+  if (isToday) {
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+export default function Sidebar({
+  onNewChat,
+  onQuickQuestion,
+  onSupportClick,
+  systemStatus,
+  hasSupportThread,
+  isSupportMode,
+
+  aiChatSessions = [],
+  activeAiChatId = null,
+  onSelectAiChat,
+  onDeleteAiChat,
+}) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="brand">
-          <img src={logo} alt="CamTech logo" className="brand-logo-image" />
+          <div className="brand-icon">
+            <img src={logo} alt="CamTech logo" />
+          </div>
 
           <div>
             <h1>CamTech</h1>
-            <p>School Assistant</p>
+            <p>Smart Assistant</p>
           </div>
         </div>
       </div>
 
       <div className="sidebar-content">
-        <button type="button" onClick={onNewChat} className="new-chat-button">
+        <button
+          type="button"
+          onClick={onNewChat}
+          className={`new-chat-button ${!isSupportMode ? "active" : ""}`}
+        >
           <MessageCirclePlus size={17} />
-          <span>New Chat</span>
+          <span>New AI Chat</span>
         </button>
+
+        <button
+          type="button"
+          onClick={onSupportClick}
+          className={`support-mode-button ${isSupportMode ? "active" : ""}`}
+        >
+          <Headphones size={17} />
+          <span>
+            {hasSupportThread ? "Admissions Chat" : "Contact Admissions"}
+          </span>
+        </button>
+
+        <div className="sidebar-section">
+          <p className="sidebar-section-label">Chat History</p>
+
+          {aiChatSessions.length > 0 ? (
+            <div className="chat-history-list">
+              {aiChatSessions.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`chat-history-item ${
+                    activeAiChatId === chat.id && !isSupportMode ? "active" : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className="chat-history-main"
+                    onClick={() => onSelectAiChat?.(chat.id)}
+                  >
+                    <span>{chat.title || "New AI Chat"}</span>
+                    <em>{formatHistoryTime(chat.updatedAt)}</em>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="chat-history-delete"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDeleteAiChat?.(chat.id);
+                    }}
+                    aria-label="Delete chat"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="chat-history-empty">
+              No AI chat history yet.
+            </div>
+          )}
+        </div>
 
         <div className="sidebar-section">
           <p className="sidebar-section-label">Quick Topics</p>
@@ -62,9 +155,9 @@ export default function Sidebar({ onNewChat, onQuickQuestion, systemStatus }) {
                   key={item.label}
                   type="button"
                   className="sidebar-topic-button"
-                  onClick={() => onQuickQuestion?.(item.question)}
+                  onClick={() => onQuickQuestion(item.question)}
                 >
-                  <Icon size={15} />
+                  <Icon size={16} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -81,7 +174,7 @@ export default function Sidebar({ onNewChat, onQuickQuestion, systemStatus }) {
             }`}
           />
           <span>
-            {systemStatus?.ready ? "Assistant online" : "Checking system..."}
+            {systemStatus?.ready ? "Assistant online" : "Checking system"}
           </span>
         </div>
       </div>

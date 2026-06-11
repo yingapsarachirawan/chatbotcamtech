@@ -74,8 +74,8 @@ export default function EnquiryForm({ onClose, onSubmitted }) {
             <p className="enquiry-kicker">Admissions support</p>
             <h2>Contact CamTech Admissions</h2>
             <p>
-              Share your details and a CamTech staff member can follow up with
-              you.
+              Share your details and continue the conversation with admissions
+              support in this chat.
             </p>
           </div>
 
@@ -155,7 +155,7 @@ export default function EnquiryForm({ onClose, onSubmitted }) {
               className="primary-button"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Submitting..." : "Submit enquiry"}
+              {isSubmitting ? "Submitting..." : "Start conversation"}
             </button>
           </div>
         </form>
