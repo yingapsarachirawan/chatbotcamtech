@@ -297,7 +297,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const data = await askChatbot(cleanText);
+      const data = await askChatbot(cleanText, [...baseMessages, userMessage]);
 
       const botMessage = {
         id: crypto.randomUUID(),

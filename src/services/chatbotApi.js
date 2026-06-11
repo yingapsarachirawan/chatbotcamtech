@@ -3,7 +3,17 @@ import { getSessionId } from "../utils/session";
 const API_BASE_URL =
   "https://xrloyjpmkcnumyglobtc.supabase.co/functions/v1/chat";
 
-export async function askChatbot(question) {
+function mapRecentMessages(messages = []) {
+  return messages
+    .filter((message) => message?.text && message.text !== "Thinking...")
+    .slice(-8)
+    .map((message) => ({
+      role: message.sender === "user" ? "user" : "assistant",
+      content: message.text,
+    }));
+}
+
+export async function askChatbot(question, messages = []) {
   const response = await fetch(API_BASE_URL, {
     method: "POST",
     headers: {
@@ -12,6 +22,7 @@ export async function askChatbot(question) {
     body: JSON.stringify({
       question,
       sessionId: getSessionId(),
+      history: mapRecentMessages(messages),
     }),
   });
 
@@ -21,7 +32,12 @@ export async function askChatbot(question) {
     throw new Error(data.error || "Failed to get chatbot answer");
   }
 
-  return data;
+  return {
+    answer:
+      data.answer ||
+      "Sorry, I could not find a clear answer. Please contact admissions for more support.",
+    suggestedQuestions: data.suggestedQuestions || [],
+  };
 }
 
 export async function getChatbotStatus() {
