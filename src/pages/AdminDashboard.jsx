@@ -2,9 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Bot,
-  Circle,
   Globe2,
-  Headphones,
   LayoutDashboard,
   LogOut,
   MessageCircle,
@@ -41,8 +39,17 @@ function safeStatus(status) {
   return String(status || "New");
 }
 
-function getStatusClass(status) {
-  return safeStatus(status).toLowerCase().replace(/\s+/g, "-");
+function isEndedStatus(status) {
+  const value = safeStatus(status).toLowerCase();
+  return value === "resolved" || value === "closed" || value === "ended";
+}
+
+function getDisplayStatus(status) {
+  return isEndedStatus(status) ? "Ended" : "Active";
+}
+
+function getDisplayStatusClass(status) {
+  return isEndedStatus(status) ? "ended" : "active";
 }
 
 function getChannel(item) {
@@ -137,6 +144,14 @@ function ChannelBadge({ channel }) {
       {getChannelIcon(value, 13)}
       {getChannelLabel(value)}
     </span>
+  );
+}
+
+function StatusBadge({ status }) {
+  return (
+    <em className={`admin-status status-${getDisplayStatusClass(status)}`}>
+      {getDisplayStatus(status)}
+    </em>
   );
 }
 
@@ -281,18 +296,20 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
     setActiveSection("messages");
   }
 
-  const stats = inboxData?.stats || {
-    totalEnquiries: 0,
-    newEnquiries: 0,
-    inProgressEnquiries: 0,
-    resolvedEnquiries: 0,
-    todayEnquiries: 0,
-  };
-
   const enquiries = inboxData?.enquiries || [];
   const selectedEnquiry = selectedDetail?.enquiry;
   const messages = selectedDetail?.messages || [];
   const recentEnquiries = enquiries.slice(0, 6);
+
+  const activeEnquiries = useMemo(
+    () => enquiries.filter((item) => !isEndedStatus(item.status)).length,
+    [enquiries]
+  );
+
+  const endedEnquiries = useMemo(
+    () => enquiries.filter((item) => isEndedStatus(item.status)).length,
+    [enquiries]
+  );
 
   const channelCounts = useMemo(
     () => ({
@@ -310,7 +327,6 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
   }, [channelFilter, enquiries]);
 
   const selectedChannel = getChannel(selectedEnquiry);
-  const selectedStatus = safeStatus(selectedEnquiry?.status);
   const activeChannelName =
     channelFilter === "all" ? "All messages" : getChannelFullName(channelFilter);
 
@@ -373,6 +389,8 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
     },
   ];
 
+  const selectedEnded = isEndedStatus(selectedEnquiry?.status);
+
   return (
     <div className="admin-shell admin-minimal-shell">
       <aside className="admin-sidebar admin-minimal-sidebar">
@@ -418,11 +436,23 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
       <main className="admin-app admin-minimal-app">
         <header className="admin-topbar admin-minimal-topbar">
           <div>
-            <p>{activeSection === "dashboard" ? "CamTech Admin" : activeChannelName}</p>
-            <h1>{activeSection === "dashboard" ? "Admin Dashboard" : "Student Messages"}</h1>
+            <p>
+              {activeSection === "dashboard"
+                ? "CamTech Admin"
+                : activeChannelName}
+            </p>
+            <h1>
+              {activeSection === "dashboard"
+                ? "Admin Dashboard"
+                : "Student Messages"}
+            </h1>
           </div>
 
-          <button type="button" className="admin-refresh-button" onClick={() => loadInbox()}>
+          <button
+            type="button"
+            className="admin-refresh-button"
+            onClick={() => loadInbox()}
+          >
             <RefreshCw size={17} />
             Refresh
           </button>
@@ -433,17 +463,16 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
         {activeSection === "dashboard" ? (
           <section className="admin-dashboard-view admin-minimal-dashboard">
             <section className="admin-stat-row">
-              <StatPill label="Total" value={stats.totalEnquiries} />
-              <StatPill label="New" value={stats.newEnquiries} />
-              <StatPill label="In Progress" value={stats.inProgressEnquiries} />
-              <StatPill label="Resolved" value={stats.resolvedEnquiries} />
+              <StatPill label="Total Chats" value={enquiries.length} />
+              <StatPill label="Active" value={activeEnquiries} />
+              <StatPill label="Ended" value={endedEnquiries} />
             </section>
 
             <section className="admin-dashboard-main-card">
               <div className="admin-card-header-simple">
                 <div>
                   <p>Recent activity</p>
-                  <h2>Latest student enquiries</h2>
+                  <h2>Latest student chats</h2>
                 </div>
 
                 <button type="button" onClick={() => openChannel("all")}>
@@ -452,11 +481,10 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
               </div>
 
               {isLoadingInbox ? (
-                <div className="admin-empty">Loading enquiries...</div>
+                <div className="admin-empty">Loading chats...</div>
               ) : recentEnquiries.length > 0 ? (
                 <div className="admin-simple-list">
                   {recentEnquiries.map((item) => {
-                    const status = safeStatus(item.status);
                     const itemChannel = getChannel(item);
 
                     return (
@@ -466,7 +494,9 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                         className="admin-simple-row"
                         onClick={() => openMessage(item.id)}
                       >
-                        <div className="admin-avatar">{getInitials(item.name)}</div>
+                        <div className="admin-avatar">
+                          {getInitials(item.name)}
+                        </div>
 
                         <div className="admin-simple-content">
                           <div>
@@ -478,16 +508,14 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
 
                         <div className="admin-simple-meta">
                           <ChannelBadge channel={itemChannel} />
-                          <em className={`admin-status status-${getStatusClass(status)}`}>
-                            {status}
-                          </em>
+                          <StatusBadge status={item.status} />
                         </div>
                       </button>
                     );
                   })}
                 </div>
               ) : (
-                <div className="admin-empty">No enquiries yet.</div>
+                <div className="admin-empty">No chats yet.</div>
               )}
             </section>
           </section>
@@ -500,17 +528,16 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                   <h2>Inbox</h2>
                 </div>
                 <span>
-                  {filteredEnquiries.length} conversation
+                  {filteredEnquiries.length} chat
                   {filteredEnquiries.length === 1 ? "" : "s"}
                 </span>
               </div>
 
               {isLoadingInbox ? (
-                <div className="admin-empty">Loading enquiries...</div>
+                <div className="admin-empty">Loading chats...</div>
               ) : filteredEnquiries.length > 0 ? (
                 <div className="admin-inbox-list">
                   {filteredEnquiries.map((item) => {
-                    const status = safeStatus(item.status);
                     const itemChannel = getChannel(item);
 
                     return (
@@ -522,7 +549,9 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                         }`}
                         onClick={() => setSelectedEnquiryId(item.id)}
                       >
-                        <div className="admin-avatar">{getInitials(item.name)}</div>
+                        <div className="admin-avatar">
+                          {getInitials(item.name)}
+                        </div>
 
                         <div className="admin-inbox-content">
                           <div className="admin-inbox-row">
@@ -534,9 +563,7 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
 
                           <div className="admin-inbox-meta">
                             <ChannelBadge channel={itemChannel} />
-                            <em className={`admin-status status-${getStatusClass(status)}`}>
-                              {status}
-                            </em>
+                            <StatusBadge status={item.status} />
                           </div>
                         </div>
                       </button>
@@ -545,34 +572,41 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                 </div>
               ) : (
                 <div className="admin-empty">
-                  No {channelFilter === "all" ? "" : getChannelLabel(channelFilter)} enquiries yet.
+                  No{" "}
+                  {channelFilter === "all"
+                    ? ""
+                    : getChannelLabel(channelFilter)}{" "}
+                  chats yet.
                 </div>
               )}
             </aside>
 
             <section className="admin-conversation admin-minimal-conversation">
               {!selectedEnquiryId ? (
-                <div className="admin-empty center">Select an enquiry to view the conversation.</div>
+                <div className="admin-empty center">
+                  Select a chat to view the conversation.
+                </div>
               ) : isLoadingDetail ? (
                 <div className="admin-empty center">Loading conversation...</div>
               ) : selectedEnquiry ? (
                 <>
                   <div className="admin-conversation-header">
                     <div className="admin-profile">
-                      <div className="admin-avatar large">{getInitials(selectedEnquiry.name)}</div>
+                      <div className="admin-avatar large">
+                        {getInitials(selectedEnquiry.name)}
+                      </div>
 
                       <div>
                         <h2>{selectedEnquiry.name || "Student"}</h2>
                         <p>
-                          {selectedEnquiry.email || "No email"} · {selectedEnquiry.phone || "No phone"}
+                          {selectedEnquiry.email || "No email"} ·{" "}
+                          {selectedEnquiry.phone || "No phone"}
                         </p>
 
                         <div className="admin-profile-tags">
                           <ChannelBadge channel={selectedChannel} />
                           <span>{getSourceText(selectedEnquiry)}</span>
-                          <em className={`admin-status status-${getStatusClass(selectedStatus)}`}>
-                            {selectedStatus}
-                          </em>
+                          <StatusBadge status={selectedEnquiry.status} />
                         </div>
                       </div>
                     </div>
@@ -625,23 +659,19 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                       onChange={(event) => setReplyText(event.target.value)}
                       onKeyDown={handleReplyKeyDown}
                       placeholder={
-                        selectedEnquiry.status === "Closed"
-                          ? "This enquiry is closed."
+                        selectedEnded
+                          ? "This chat has ended."
                           : selectedChannel === "telegram"
                           ? "Reply to Telegram student..."
                           : "Write a reply..."
                       }
                       rows="1"
-                      disabled={selectedEnquiry.status === "Closed"}
+                      disabled={selectedEnded}
                     />
 
                     <button
                       type="submit"
-                      disabled={
-                        isSendingReply ||
-                        !replyText.trim() ||
-                        selectedEnquiry.status === "Closed"
-                      }
+                      disabled={isSendingReply || !replyText.trim() || selectedEnded}
                       aria-label="Send message"
                     >
                       {isSendingReply ? "..." : <Send size={20} />}
@@ -649,7 +679,9 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                   </form>
                 </>
               ) : (
-                <div className="admin-empty center">Could not load this enquiry.</div>
+                <div className="admin-empty center">
+                  Could not load this chat.
+                </div>
               )}
             </section>
           </section>

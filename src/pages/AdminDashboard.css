@@ -1,5 +1,5 @@
 /* ==================================================
-   CamTech Admin Dashboard — Minimal Chatbot Theme
+   CamTech Admin Dashboard — Minimal Chat UI
    Brand: #0E315D
 ================================================== */
 
@@ -11,8 +11,7 @@
   --admin-soft: #94a3b8;
   --admin-border: #dbe5f0;
   --admin-border-soft: rgba(219, 229, 240, 0.78);
-  --admin-bg: #ffffff;
-  --admin-panel: rgba(255, 255, 255, 0.74);
+  --admin-panel: rgba(255, 255, 255, 0.72);
   --admin-panel-strong: rgba(255, 255, 255, 0.92);
   --admin-shadow: 0 22px 60px rgba(14, 49, 93, 0.08);
   --admin-telegram: #0b87c9;
@@ -28,7 +27,7 @@
   color: var(--admin-text);
   background:
     radial-gradient(circle at 20% 10%, rgba(14, 49, 93, 0.08), transparent 30%),
-    radial-gradient(circle at 82% 14%, rgba(180, 205, 235, 0.24), transparent 30%),
+    radial-gradient(circle at 82% 14%, rgba(180, 205, 235, 0.22), transparent 30%),
     linear-gradient(135deg, #f6f9fc 0%, #ffffff 52%, #edf4fb 100%);
   overflow: hidden;
 }
@@ -208,12 +207,12 @@
 
 .admin-stat-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
 .admin-stat-pill {
-  min-height: 98px;
+  min-height: 94px;
   padding: 18px;
   border-radius: 24px;
   border: 1px solid var(--admin-border-soft);
@@ -407,22 +406,12 @@
   color: var(--admin-facebook);
 }
 
-.status-new {
+.status-active {
   background: rgba(14, 49, 93, 0.08);
   color: var(--admin-navy);
 }
 
-.status-in-progress {
-  background: rgba(11, 135, 201, 0.11);
-  color: var(--admin-telegram);
-}
-
-.status-resolved {
-  background: rgba(34, 197, 94, 0.12);
-  color: #15803d;
-}
-
-.status-closed {
+.status-ended {
   background: #eef2f7;
   color: #64748b;
 }
@@ -649,7 +638,7 @@
 
 @media (max-width: 1100px) {
   .admin-stat-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .admin-minimal-chat-layout {
