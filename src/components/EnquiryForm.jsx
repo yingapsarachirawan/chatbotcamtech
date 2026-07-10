@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Headphones, Mail, Phone, User, X } from "lucide-react";
 import { submitEnquiry } from "../services/enquiryApi";
+import logo from "../assets/logo.jpg";
 
 export default function EnquiryForm({ onClose, onSubmitted }) {
   const [formData, setFormData] = useState({
@@ -67,68 +69,102 @@ export default function EnquiryForm({ onClose, onSubmitted }) {
   }
 
   return (
-    <div className="enquiry-overlay">
-      <div className="enquiry-modal">
-        <div className="enquiry-header">
-          <div>
-            <p className="enquiry-kicker">Admissions support</p>
-            <h2>Contact CamTech Admissions</h2>
-            <p>
-              Share your details and continue the conversation with admissions
-              support in this chat.
-            </p>
+    <div className="enquiry-overlay clean-enquiry-overlay">
+      <div className="enquiry-modal clean-enquiry-modal">
+        <button
+          type="button"
+          className="enquiry-close clean-enquiry-close"
+          onClick={onClose}
+          aria-label="Close enquiry form"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="clean-enquiry-hero">
+          <div className="clean-enquiry-logo">
+            <img src={logo} alt="CamTech logo" />
           </div>
 
-          <button type="button" className="enquiry-close" onClick={onClose}>
-            ×
-          </button>
+          <div>
+            <p className="enquiry-kicker clean-enquiry-kicker">
+              Admissions Support
+            </p>
+
+            <h2>Contact CamTech Admissions</h2>
+
+            <span>
+              Share your details and continue the conversation with our
+              admissions team.
+            </span>
+          </div>
         </div>
 
-        <form className="enquiry-form" onSubmit={handleSubmit}>
-          <label>
-            Full name <span>*</span>
-            <input
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Enter your full name"
-            />
+        <form className="enquiry-form clean-enquiry-form" onSubmit={handleSubmit}>
+          <label className="clean-field">
+            <span>
+              Full name <em>*</em>
+            </span>
+
+            <div className="clean-field-shell">
+              <User size={17} />
+              <input
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter your full name"
+              />
+            </div>
           </label>
 
-          <div className="enquiry-grid">
-            <label>
-              Email
-              <input
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="you@example.com"
-              />
+          <div className="enquiry-grid clean-enquiry-grid">
+            <label className="clean-field">
+              <span>Email</span>
+
+              <div className="clean-field-shell">
+                <Mail size={17} />
+                <input
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="you@example.com"
+                />
+              </div>
             </label>
 
-            <label>
-              Phone
-              <input
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+855..."
-              />
+            <label className="clean-field">
+              <span>Phone</span>
+
+              <div className="clean-field-shell">
+                <Phone size={17} />
+                <input
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="+855..."
+                />
+              </div>
             </label>
           </div>
 
-          <label>
-            Interested program
-            <input
-              name="interestedProgram"
-              value={formData.interestedProgram}
-              onChange={handleChange}
-              placeholder="e.g. Software Engineering"
-            />
+          <label className="clean-field">
+            <span>Interested program</span>
+
+            <div className="clean-field-shell">
+              <Headphones size={17} />
+              <input
+                name="interestedProgram"
+                value={formData.interestedProgram}
+                onChange={handleChange}
+                placeholder="e.g. Software Engineering"
+              />
+            </div>
           </label>
 
-          <label>
-            Message <span>*</span>
+          <label className="clean-field">
+            <span>
+              Message <em>*</em>
+            </span>
+
             <textarea
               name="message"
               value={formData.message}
@@ -140,10 +176,10 @@ export default function EnquiryForm({ onClose, onSubmitted }) {
 
           {errorMessage && <p className="enquiry-error">{errorMessage}</p>}
 
-          <div className="enquiry-actions">
+          <div className="enquiry-actions clean-enquiry-actions">
             <button
               type="button"
-              className="secondary-button"
+              className="secondary-button clean-secondary-button"
               onClick={onClose}
               disabled={isSubmitting}
             >
@@ -152,7 +188,7 @@ export default function EnquiryForm({ onClose, onSubmitted }) {
 
             <button
               type="submit"
-              className="primary-button"
+              className="primary-button clean-primary-button"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Submitting..." : "Start conversation"}

@@ -1,9 +1,13 @@
 import {
+  // eslint-disable-next-line no-unused-vars
   CalendarDays,
   GraduationCap,
   Languages,
   Send,
   WalletCards,
+  Paperclip,
+  BadgePercent,
+  Mic,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
@@ -14,17 +18,17 @@ const faqPrompts = [
     question: "What are the admission requirements?",
   },
   {
-    label: "Tuition Fee",
+    label: "Tuition Fees",
     icon: WalletCards,
     question: "I want to know about tuition fee",
   },
   {
-    label: "Schedule",
-    icon: CalendarDays,
-    question: "What is the study schedule?",
+    label: "Scholarships",
+    icon: BadgePercent,
+    question: "Scholarship details",
   },
   {
-    label: "English",
+    label: "English Requirement",
     icon: Languages,
     question: "What are the English requirements?",
   },
@@ -60,30 +64,13 @@ export default function ChatInput({
   }
 
   return (
-    <div className="chat-input-area">
-      {!isSupportMode && (
-        <div className="faq-button-row">
-          {faqPrompts.map((item) => {
-            const Icon = item.icon;
+    <div className="chat-input-area minimal-chat-input-area">
+      <form className="chat-input-form minimal-chat-input-form" onSubmit={onSend}>
+        <div className="chat-input-shell minimal-input-shell">
+          <button type="button" className="minimal-input-icon" disabled>
+            <Paperclip size={21} />
+          </button>
 
-            return (
-              <button
-                key={item.label}
-                type="button"
-                className="faq-chip"
-                onClick={() => onQuickQuestion(item.question)}
-                disabled={disabled}
-              >
-                <Icon size={14} />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <form className="chat-input-form" onSubmit={onSend}>
-        <div className="chat-input-shell multiline no-left-action">
           <textarea
             ref={textareaRef}
             value={value}
@@ -91,23 +78,48 @@ export default function ChatInput({
             onKeyDown={handleKeyDown}
             placeholder={
               isSupportMode
-                ? "Write a message to admissions... Shift + Enter for new line"
-                : "Ask about CamTech admissions, programs, or fees... Shift + Enter for new line"
+                ? "Write a message to admissions..."
+                : "Message CamTech Assistant..."
             }
             rows={1}
             disabled={disabled}
           />
 
+          <button type="button" className="minimal-input-icon" disabled>
+            <Mic size={21} />
+          </button>
+
           <button
             type="submit"
-            className="send-button"
+            className="send-button minimal-send-button"
             disabled={disabled || !value.trim()}
             aria-label="Send message"
           >
-            <Send size={19} />
+            <Send size={21} />
           </button>
         </div>
       </form>
+
+      {!isSupportMode && (
+        <div className="faq-button-row minimal-faq-row">
+          {faqPrompts.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.label}
+                type="button"
+                className="faq-chip minimal-faq-chip"
+                onClick={() => onQuickQuestion(item.question)}
+                disabled={disabled}
+              >
+                <Icon size={16} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

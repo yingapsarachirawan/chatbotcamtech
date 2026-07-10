@@ -1,4 +1,29 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+.channel-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.channel-badge.website {
+  color: #465b8f;
+  background: #eef3ff;
+}
+
+.channel-badge.telegram {
+  color: #0874b8;
+  background: #e7f5ff;
+}
+
+.channel-badge.facebook {
+  color: #1456d9;
+  background: #edf3ff;
+}
 /* =========================
    Remove left plus button spacing
 ========================= */

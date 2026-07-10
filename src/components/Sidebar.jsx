@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   MessageCirclePlus,
   GraduationCap,
@@ -6,6 +7,10 @@ import {
   Languages,
   Headphones,
   Trash2,
+  Home,
+  Clock3,
+  Settings,
+  X,
 } from "lucide-react";
 import logo from "../assets/logo.jpg";
 
@@ -59,72 +64,156 @@ export default function Sidebar({
   systemStatus,
   hasSupportThread,
   isSupportMode,
-
   aiChatSessions = [],
   activeAiChatId = null,
   onSelectAiChat,
   onDeleteAiChat,
 }) {
-  return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <div className="brand">
-          <div className="brand-icon">
-            <img src={logo} alt="CamTech logo" />
-          </div>
+  const [showHistory, setShowHistory] = useState(false);
 
-          <div>
-            <h1>CamTech</h1>
-            <p>Smart Assistant</p>
+  function handleNewChat() {
+    setShowHistory(false);
+    onNewChat?.();
+  }
+
+  function handleSupportClick() {
+    setShowHistory(false);
+    onSupportClick?.();
+  }
+
+  function handleQuickTopic(question) {
+    setShowHistory(false);
+    onQuickQuestion?.(question);
+  }
+
+  return (
+    <>
+      <aside className="sidebar minimal-sidebar">
+        <div className="minimal-sidebar-top">
+          <button
+            type="button"
+            className="minimal-logo-button"
+            onClick={handleNewChat}
+            title="CamTech Assistant"
+          >
+            <img src={logo} alt="CamTech logo" />
+          </button>
+
+          <nav className="minimal-nav">
+            <button
+              type="button"
+              onClick={handleNewChat}
+              className={`minimal-nav-button ${!isSupportMode ? "active" : ""}`}
+              title="Home"
+            >
+              <Home size={21} />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleNewChat}
+              className="minimal-nav-button"
+              title="New AI Chat"
+            >
+              <MessageCirclePlus size={20} />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSupportClick}
+              className={`minimal-nav-button ${isSupportMode ? "active" : ""}`}
+              title={hasSupportThread ? "Admissions Chat" : "Contact Admissions"}
+            >
+              <Headphones size={20} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowHistory((current) => !current)}
+              className={`minimal-nav-button ${showHistory ? "active" : ""}`}
+              title="Chat History"
+            >
+              <Clock3 size={20} />
+            </button>
+          </nav>
+
+          <div className="minimal-topic-rail">
+            {quickTopics.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  className="minimal-topic-button"
+                  onClick={() => handleQuickTopic(item.question)}
+                  title={item.label}
+                >
+                  <Icon size={18} />
+                </button>
+              );
+            })}
           </div>
         </div>
-      </div>
 
-      <div className="sidebar-content">
-        <button
-          type="button"
-          onClick={onNewChat}
-          className={`new-chat-button ${!isSupportMode ? "active" : ""}`}
-        >
-          <MessageCirclePlus size={17} />
-          <span>New AI Chat</span>
-        </button>
+        <div className="minimal-sidebar-bottom">
+          <button type="button" className="minimal-nav-button" title="Settings">
+            <Settings size={19} />
+          </button>
 
-        <button
-          type="button"
-          onClick={onSupportClick}
-          className={`support-mode-button ${isSupportMode ? "active" : ""}`}
-        >
-          <Headphones size={17} />
-          <span>
-            {hasSupportThread ? "Admissions Chat" : "Contact Admissions"}
-          </span>
-        </button>
+          <div
+            className={`minimal-user-dot ${
+              systemStatus?.ready ? "online" : "offline"
+            }`}
+            title={systemStatus?.ready ? "Assistant online" : "Checking system"}
+          >
+            <img src={logo} alt="Assistant status" />
+            <span />
+          </div>
+        </div>
+      </aside>
 
-        <div className="sidebar-section">
-          <p className="sidebar-section-label">Chat History</p>
+      {showHistory && (
+        <aside className="history-drawer">
+          <div className="history-drawer-header">
+            <div>
+              <h2>Chat History</h2>
+              <p>{aiChatSessions.length} saved conversation</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowHistory(false)}
+              aria-label="Close history"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
           {aiChatSessions.length > 0 ? (
-            <div className="chat-history-list">
+            <div className="history-drawer-list">
               {aiChatSessions.map((chat) => (
                 <div
                   key={chat.id}
-                  className={`chat-history-item ${
+                  className={`history-drawer-item ${
                     activeAiChatId === chat.id && !isSupportMode ? "active" : ""
                   }`}
                 >
                   <button
                     type="button"
-                    className="chat-history-main"
-                    onClick={() => onSelectAiChat?.(chat.id)}
+                    className="history-drawer-main"
+                    onClick={() => {
+                      setShowHistory(false);
+                      onSelectAiChat?.(chat.id);
+                    }}
                   >
-                    <span>{chat.title || "New AI Chat"}</span>
-                    <em>{formatHistoryTime(chat.updatedAt)}</em>
+                    <strong>{chat.title || "New AI Chat"}</strong>
+                    <span>{formatHistoryTime(chat.updatedAt)}</span>
                   </button>
 
                   <button
                     type="button"
-                    className="chat-history-delete"
+                    className="history-drawer-delete"
                     onClick={(event) => {
                       event.stopPropagation();
                       onDeleteAiChat?.(chat.id);
@@ -137,47 +226,10 @@ export default function Sidebar({
               ))}
             </div>
           ) : (
-            <div className="chat-history-empty">
-              No AI chat history yet.
-            </div>
+            <div className="history-drawer-empty">No AI chat history yet.</div>
           )}
-        </div>
-
-        <div className="sidebar-section">
-          <p className="sidebar-section-label">Quick Topics</p>
-
-          <div className="sidebar-topic-list">
-            {quickTopics.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className="sidebar-topic-button"
-                  onClick={() => onQuickQuestion(item.question)}
-                >
-                  <Icon size={16} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="sidebar-footer">
-        <div className="system-status">
-          <span
-            className={`status-dot ${
-              systemStatus?.ready ? "status-dot-online" : "status-dot-offline"
-            }`}
-          />
-          <span>
-            {systemStatus?.ready ? "Assistant online" : "Checking system"}
-          </span>
-        </div>
-      </div>
-    </aside>
+        </aside>
+      )}
+    </>
   );
 }

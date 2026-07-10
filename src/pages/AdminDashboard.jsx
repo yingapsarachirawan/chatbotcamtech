@@ -1,5 +1,18 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Bot,
+  Circle,
+  Globe2,
+  Headphones,
+  LayoutDashboard,
+  LogOut,
+  MessageCircle,
+  RefreshCw,
+  Send,
+  SendHorizontal,
+  Settings,
+} from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import {
   getAdminInbox,
@@ -13,8 +26,10 @@ function formatDate(value) {
   if (!value) return "-";
 
   return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -30,36 +45,113 @@ function getStatusClass(status) {
   return safeStatus(status).toLowerCase().replace(/\s+/g, "-");
 }
 
-function DashboardIcon() {
+function getChannel(item) {
+  const directChannel = String(item?.channel || "").trim().toLowerCase();
+
+  if (["website", "telegram", "facebook"].includes(directChannel)) {
+    return directChannel;
+  }
+
+  const sourceText = [
+    item?.session_id,
+    item?.external_chat_id,
+    item?.external_user_id,
+    item?.source_username,
+    item?.message,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (sourceText.includes("telegram")) return "telegram";
+  if (sourceText.includes("facebook")) return "facebook";
+
+  return "website";
+}
+
+function getChannelLabel(channel) {
+  const value = String(channel || "website").toLowerCase();
+
+  if (value === "telegram") return "Telegram";
+  if (value === "facebook") return "Facebook";
+  return "Website";
+}
+
+function getChannelFullName(channel) {
+  const value = String(channel || "website").toLowerCase();
+
+  if (value === "telegram") return "Telegram Bot";
+  if (value === "facebook") return "Facebook Messenger";
+  return "Website Chatbot";
+}
+
+function getSourceText(enquiry) {
+  const channel = getChannel(enquiry);
+
+  if (channel === "telegram") {
+    if (enquiry?.source_username) {
+      return `@${String(enquiry.source_username).replace(/^@/, "")}`;
+    }
+
+    return "Telegram user";
+  }
+
+  if (channel === "facebook") {
+    return "Facebook user";
+  }
+
+  return "Website visitor";
+}
+
+function FacebookIcon({ size = 18 }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 5.5C4 4.67 4.67 4 5.5 4h5C11.33 4 12 4.67 12 5.5v5c0 .83-.67 1.5-1.5 1.5h-5C4.67 12 4 11.33 4 10.5v-5Z" />
-      <path d="M14 5.5c0-.83.67-1.5 1.5-1.5h3c.83 0 1.5.67 1.5 1.5v3c0 .83-.67 1.5-1.5 1.5h-3c-.83 0-1.5-.67-1.5-1.5v-3Z" />
-      <path d="M14 13.5c0-.83.67-1.5 1.5-1.5h3c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5h-3c-.83 0-1.5-.67-1.5-1.5v-5Z" />
-      <path d="M4 15.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5v3c0 .83-.67 1.5-1.5 1.5h-5C4.67 20 4 19.33 4 18.5v-3Z" />
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14.5 8.5H16V5h-2.2C11.1 5 9.5 6.58 9.5 9.25V11H7v3.5h2.5V21H13v-6.5h2.7L16.2 11H13V9.4c0-.6.28-.9 1.5-.9Z" />
     </svg>
   );
 }
 
-function MessageIcon() {
+function getChannelIcon(channel, size = 18) {
+  const value = String(channel || "website").toLowerCase();
+
+  if (value === "telegram") return <SendHorizontal size={size} />;
+  if (value === "facebook") return <FacebookIcon size={size} />;
+  return <Globe2 size={size} />;
+}
+
+function ChannelBadge({ channel }) {
+  const value = getChannel({ channel });
+
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 6.5C5 5.67 5.67 5 6.5 5h11c.83 0 1.5.67 1.5 1.5v7c0 .83-.67 1.5-1.5 1.5H9l-4 4V6.5Z" />
-    </svg>
+    <span className={`admin-channel-badge admin-channel-${value}`}>
+      {getChannelIcon(value, 13)}
+      {getChannelLabel(value)}
+    </span>
   );
 }
 
-function SendIcon() {
+function StatPill({ label, value }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 12 20 5l-5.5 14-3-5.5L4 12Z" />
-      <path d="m11.5 13.5 3-3" />
-    </svg>
+    <div className="admin-stat-pill">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
   );
 }
 
 export default function AdminDashboard({ onLogout, onBackToChat }) {
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [channelFilter, setChannelFilter] = useState("all");
   const [inboxData, setInboxData] = useState(null);
   const [selectedEnquiryId, setSelectedEnquiryId] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(null);
@@ -200,237 +292,226 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
   const enquiries = inboxData?.enquiries || [];
   const selectedEnquiry = selectedDetail?.enquiry;
   const messages = selectedDetail?.messages || [];
-  const recentEnquiries = enquiries.slice(0, 5);
+  const recentEnquiries = enquiries.slice(0, 6);
+
+  const channelCounts = useMemo(
+    () => ({
+      all: enquiries.length,
+      website: enquiries.filter((item) => getChannel(item) === "website").length,
+      telegram: enquiries.filter((item) => getChannel(item) === "telegram").length,
+      facebook: enquiries.filter((item) => getChannel(item) === "facebook").length,
+    }),
+    [enquiries]
+  );
+
+  const filteredEnquiries = useMemo(() => {
+    if (channelFilter === "all") return enquiries;
+    return enquiries.filter((item) => getChannel(item) === channelFilter);
+  }, [channelFilter, enquiries]);
+
+  const selectedChannel = getChannel(selectedEnquiry);
+  const selectedStatus = safeStatus(selectedEnquiry?.status);
+  const activeChannelName =
+    channelFilter === "all" ? "All messages" : getChannelFullName(channelFilter);
+
+  function openChannel(channel) {
+    setChannelFilter(channel);
+    setActiveSection("messages");
+
+    const firstMatch =
+      channel === "all"
+        ? enquiries[0]
+        : enquiries.find((item) => getChannel(item) === channel);
+
+    if (firstMatch) {
+      setSelectedEnquiryId(firstMatch.id);
+    } else {
+      setSelectedEnquiryId(null);
+      setSelectedDetail(null);
+    }
+  }
+
+  const navItems = [
+    {
+      key: "dashboard",
+      label: "Dashboard",
+      icon: <LayoutDashboard size={20} />,
+      active: activeSection === "dashboard",
+      onClick: () => setActiveSection("dashboard"),
+    },
+    {
+      key: "all",
+      label: "Messages",
+      icon: <MessageCircle size={20} />,
+      count: channelCounts.all,
+      active: activeSection === "messages" && channelFilter === "all",
+      onClick: () => openChannel("all"),
+    },
+    {
+      key: "website",
+      label: "Website",
+      icon: <Globe2 size={20} />,
+      count: channelCounts.website,
+      active: activeSection === "messages" && channelFilter === "website",
+      onClick: () => openChannel("website"),
+    },
+    {
+      key: "telegram",
+      label: "Telegram",
+      icon: <SendHorizontal size={20} />,
+      count: channelCounts.telegram,
+      active: activeSection === "messages" && channelFilter === "telegram",
+      onClick: () => openChannel("telegram"),
+    },
+    {
+      key: "facebook",
+      label: "Facebook later",
+      icon: <FacebookIcon size={20} />,
+      count: channelCounts.facebook,
+      active: activeSection === "messages" && channelFilter === "facebook",
+      onClick: () => openChannel("facebook"),
+    },
+  ];
 
   return (
-    <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <div className="admin-brand">
+    <div className="admin-shell admin-minimal-shell">
+      <aside className="admin-sidebar admin-minimal-sidebar">
+        <button
+          type="button"
+          className="admin-logo-button"
+          onClick={() => setActiveSection("dashboard")}
+          title="CamTech Admin"
+        >
           <img src={logo} alt="CamTech logo" />
+        </button>
 
-          <div>
-            <h1>CamTech</h1>
-            <p>Admin Console</p>
-          </div>
-        </div>
-
-        <nav className="admin-nav">
-          <button
-            type="button"
-            className={activeSection === "dashboard" ? "active" : ""}
-            onClick={() => setActiveSection("dashboard")}
-          >
-            <span>
-              <DashboardIcon />
-            </span>
-            Dashboard
-          </button>
-
-          <button
-            type="button"
-            className={activeSection === "messages" ? "active" : ""}
-            onClick={() => setActiveSection("messages")}
-          >
-            <span>
-              <MessageIcon />
-            </span>
-            Messages
-            {stats.newEnquiries > 0 && <em>{stats.newEnquiries}</em>}
-          </button>
+        <nav className="admin-icon-nav" aria-label="Admin navigation">
+          {navItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={item.active ? "active" : ""}
+              onClick={item.onClick}
+              title={item.label}
+            >
+              {item.icon}
+              {item.count > 0 && <em>{item.count}</em>}
+            </button>
+          ))}
         </nav>
 
-        <div className="admin-sidebar-footer">
-          <div className="admin-online">
-            <span />
-            Admin online
-          </div>
-
-          <button type="button" onClick={onBackToChat}>
-            Back to Chatbot
+        <div className="admin-rail-bottom">
+          <button type="button" title="Back to Chatbot" onClick={onBackToChat}>
+            <Bot size={20} />
           </button>
 
-          <button type="button" onClick={handleLogout} className="logout">
-            Logout
+          <button type="button" title="Settings">
+            <Settings size={20} />
+          </button>
+
+          <button type="button" title="Logout" onClick={handleLogout}>
+            <LogOut size={20} />
           </button>
         </div>
       </aside>
 
-      <main className="admin-app">
-        <header className="admin-topbar">
-          <div className="admin-topbrand">
-            <div>
-              <p>
-                {activeSection === "dashboard"
-                  ? "CamTech Admin"
-                  : "Message Center"}
-              </p>
-
-              <h1>
-                {activeSection === "dashboard"
-                  ? "Admin Dashboard"
-                  : "Student Messages"}
-              </h1>
-
-              <span>
-                {activeSection === "dashboard"
-                  ? "Monitor enquiries, support progress, and recent student activity."
-                  : "View student enquiries and reply from the admin message workspace."}
-              </span>
-            </div>
+      <main className="admin-app admin-minimal-app">
+        <header className="admin-topbar admin-minimal-topbar">
+          <div>
+            <p>{activeSection === "dashboard" ? "CamTech Admin" : activeChannelName}</p>
+            <h1>{activeSection === "dashboard" ? "Admin Dashboard" : "Student Messages"}</h1>
           </div>
 
-          <div className="admin-top-actions">
-            <button type="button" onClick={() => loadInbox()}>
-              Refresh
-            </button>
-          </div>
+          <button type="button" className="admin-refresh-button" onClick={() => loadInbox()}>
+            <RefreshCw size={17} />
+            Refresh
+          </button>
         </header>
 
         {errorMessage && <div className="admin-alert">{errorMessage}</div>}
 
         {activeSection === "dashboard" ? (
-          <section className="admin-dashboard-view">
-            <div className="admin-overview-card">
-              <div className="admin-overview-icon">
-                <DashboardIcon />
-              </div>
-
-              <div>
-                <p>Admin Overview</p>
-                <h2>Support dashboard</h2>
-                <span>
-                  Manage student enquiries, track support activity, and open
-                  messages when a student needs a reply.
-                </span>
-              </div>
-
-              <button type="button" onClick={() => setActiveSection("messages")}>
-                Open Messages
-              </button>
-            </div>
-
-            <section className="admin-summary">
-              <div>
-                <span>Total</span>
-                <strong>{stats.totalEnquiries}</strong>
-                <p>All enquiries</p>
-              </div>
-
-              <div>
-                <span>New</span>
-                <strong>{stats.newEnquiries}</strong>
-                <p>Need review</p>
-              </div>
-
-              <div>
-                <span>In Progress</span>
-                <strong>{stats.inProgressEnquiries}</strong>
-                <p>Being handled</p>
-              </div>
-
-              <div>
-                <span>Resolved</span>
-                <strong>{stats.resolvedEnquiries}</strong>
-                <p>Completed</p>
-              </div>
+          <section className="admin-dashboard-view admin-minimal-dashboard">
+            <section className="admin-stat-row">
+              <StatPill label="Total" value={stats.totalEnquiries} />
+              <StatPill label="New" value={stats.newEnquiries} />
+              <StatPill label="In Progress" value={stats.inProgressEnquiries} />
+              <StatPill label="Resolved" value={stats.resolvedEnquiries} />
             </section>
 
-            <div className="admin-dashboard-grid">
-              <section className="admin-panel-card admin-recent-card">
-                <div className="admin-section-title">
-                  <div>
-                    <h2>Recent enquiries</h2>
-                    <p>Latest students who contacted admissions support</p>
-                  </div>
-                </div>
-
-                {isLoadingInbox ? (
-                  <div className="admin-empty">Loading enquiries...</div>
-                ) : recentEnquiries.length > 0 ? (
-                  <div className="admin-recent-list">
-                    {recentEnquiries.map((item) => {
-                      const status = safeStatus(item.status);
-
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className="admin-recent-item"
-                          onClick={() => openMessage(item.id)}
-                        >
-                          <div className="admin-avatar">
-                            {getInitials(item.name)}
-                          </div>
-
-                          <div>
-                            <strong>{item.name || "Student"}</strong>
-                            <p>{item.message || "No message preview."}</p>
-                          </div>
-
-                          <em
-                            className={`admin-status status-${getStatusClass(
-                              status
-                            )}`}
-                          >
-                            {status}
-                          </em>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="admin-empty">No enquiries yet.</div>
-                )}
-              </section>
-
-              <section className="admin-panel-card">
-                <div className="admin-section-title">
-                  <div>
-                    <h2>Support workflow</h2>
-                    <p>Recommended handling process</p>
-                  </div>
-                </div>
-
-                <div className="admin-flow">
-                  <div>
-                    <span>1</span>
-                    <p>Review new enquiry</p>
-                  </div>
-
-                  <div>
-                    <span>2</span>
-                    <p>Open the message workspace</p>
-                  </div>
-
-                  <div>
-                    <span>3</span>
-                    <p>Reply to the student</p>
-                  </div>
-
-                  <div>
-                    <span>4</span>
-                    <p>Continue conversation until solved</p>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </section>
-        ) : (
-          <section className="admin-chat-layout">
-            <aside className="admin-inbox">
-              <div className="admin-section-title">
+            <section className="admin-dashboard-main-card">
+              <div className="admin-card-header-simple">
                 <div>
-                  <h2>Student enquiries</h2>
-                  <p>{enquiries.length} conversation</p>
+                  <p>Recent activity</p>
+                  <h2>Latest student enquiries</h2>
                 </div>
+
+                <button type="button" onClick={() => openChannel("all")}>
+                  Open messages
+                </button>
               </div>
 
               {isLoadingInbox ? (
                 <div className="admin-empty">Loading enquiries...</div>
-              ) : enquiries.length > 0 ? (
-                <div className="admin-inbox-list">
-                  {enquiries.map((item) => {
+              ) : recentEnquiries.length > 0 ? (
+                <div className="admin-simple-list">
+                  {recentEnquiries.map((item) => {
                     const status = safeStatus(item.status);
+                    const itemChannel = getChannel(item);
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="admin-simple-row"
+                        onClick={() => openMessage(item.id)}
+                      >
+                        <div className="admin-avatar">{getInitials(item.name)}</div>
+
+                        <div className="admin-simple-content">
+                          <div>
+                            <strong>{item.name || "Student"}</strong>
+                            <span>{formatDate(item.created_at)}</span>
+                          </div>
+                          <p>{item.message || "No message preview."}</p>
+                        </div>
+
+                        <div className="admin-simple-meta">
+                          <ChannelBadge channel={itemChannel} />
+                          <em className={`admin-status status-${getStatusClass(status)}`}>
+                            {status}
+                          </em>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="admin-empty">No enquiries yet.</div>
+              )}
+            </section>
+          </section>
+        ) : (
+          <section className="admin-chat-layout admin-minimal-chat-layout">
+            <aside className="admin-inbox admin-minimal-inbox">
+              <div className="admin-card-header-simple small">
+                <div>
+                  <p>{activeChannelName}</p>
+                  <h2>Inbox</h2>
+                </div>
+                <span>
+                  {filteredEnquiries.length} conversation
+                  {filteredEnquiries.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {isLoadingInbox ? (
+                <div className="admin-empty">Loading enquiries...</div>
+              ) : filteredEnquiries.length > 0 ? (
+                <div className="admin-inbox-list">
+                  {filteredEnquiries.map((item) => {
+                    const status = safeStatus(item.status);
+                    const itemChannel = getChannel(item);
 
                     return (
                       <button
@@ -441,9 +522,7 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                         }`}
                         onClick={() => setSelectedEnquiryId(item.id)}
                       >
-                        <div className="admin-avatar">
-                          {getInitials(item.name)}
-                        </div>
+                        <div className="admin-avatar">{getInitials(item.name)}</div>
 
                         <div className="admin-inbox-content">
                           <div className="admin-inbox-row">
@@ -454,15 +533,8 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                           <p>{item.message || "No message preview."}</p>
 
                           <div className="admin-inbox-meta">
-                            <span>
-                              {item.interested_program || "General enquiry"}
-                            </span>
-
-                            <em
-                              className={`admin-status status-${getStatusClass(
-                                status
-                              )}`}
-                            >
+                            <ChannelBadge channel={itemChannel} />
+                            <em className={`admin-status status-${getStatusClass(status)}`}>
                               {status}
                             </em>
                           </div>
@@ -472,47 +544,37 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                   })}
                 </div>
               ) : (
-                <div className="admin-empty">No enquiries yet.</div>
+                <div className="admin-empty">
+                  No {channelFilter === "all" ? "" : getChannelLabel(channelFilter)} enquiries yet.
+                </div>
               )}
             </aside>
 
-            <section className="admin-conversation">
+            <section className="admin-conversation admin-minimal-conversation">
               {!selectedEnquiryId ? (
-                <div className="admin-empty center">
-                  Select an enquiry to view the conversation.
-                </div>
+                <div className="admin-empty center">Select an enquiry to view the conversation.</div>
               ) : isLoadingDetail ? (
                 <div className="admin-empty center">Loading conversation...</div>
               ) : selectedEnquiry ? (
                 <>
                   <div className="admin-conversation-header">
                     <div className="admin-profile">
-                      <div className="admin-avatar large">
-                        {getInitials(selectedEnquiry.name)}
-                      </div>
+                      <div className="admin-avatar large">{getInitials(selectedEnquiry.name)}</div>
 
                       <div>
                         <h2>{selectedEnquiry.name || "Student"}</h2>
                         <p>
-                          {selectedEnquiry.email || "No email"} ·{" "}
-                          {selectedEnquiry.phone || "No phone"}
+                          {selectedEnquiry.email || "No email"} · {selectedEnquiry.phone || "No phone"}
                         </p>
+
+                        <div className="admin-profile-tags">
+                          <ChannelBadge channel={selectedChannel} />
+                          <span>{getSourceText(selectedEnquiry)}</span>
+                          <em className={`admin-status status-${getStatusClass(selectedStatus)}`}>
+                            {selectedStatus}
+                          </em>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="admin-detail-strip">
-                    <div>
-                      <span>Program</span>
-                      <strong>
-                        {selectedEnquiry.interested_program ||
-                          "General enquiry"}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>Created</span>
-                      <strong>{formatDate(selectedEnquiry.created_at)}</strong>
                     </div>
                   </div>
 
@@ -520,6 +582,7 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                     {messages.length > 0 ? (
                       messages.map((item) => {
                         const isAdmin = item.sender === "admin";
+                        const isSystem = item.sender === "system";
 
                         return (
                           <div
@@ -527,16 +590,24 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                             className={`admin-message ${
                               isAdmin
                                 ? "admin-message-admin"
+                                : isSystem
+                                ? "admin-message-system"
                                 : "admin-message-student"
                             }`}
                           >
                             <div className="admin-message-bubble">
-                              <div className="admin-message-head">
-                                <strong>
-                                  {isAdmin ? "CamTech Admin" : "Student"}
-                                </strong>
-                                <span>{formatDate(item.created_at)}</span>
-                              </div>
+                              {!isSystem && (
+                                <div className="admin-message-head">
+                                  <strong>
+                                    {isAdmin
+                                      ? "CamTech Admin"
+                                      : selectedChannel === "telegram"
+                                      ? "Telegram Student"
+                                      : "Student"}
+                                  </strong>
+                                  <span>{formatDate(item.created_at)}</span>
+                                </div>
+                              )}
 
                               <p>{item.message}</p>
                             </div>
@@ -556,9 +627,11 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                       placeholder={
                         selectedEnquiry.status === "Closed"
                           ? "This enquiry is closed."
-                          : "Write a reply... Enter to send, Shift + Enter for new line"
+                          : selectedChannel === "telegram"
+                          ? "Reply to Telegram student..."
+                          : "Write a reply..."
                       }
-                      rows="2"
+                      rows="1"
                       disabled={selectedEnquiry.status === "Closed"}
                     />
 
@@ -571,14 +644,12 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
                       }
                       aria-label="Send message"
                     >
-                      {isSendingReply ? "..." : <SendIcon />}
+                      {isSendingReply ? "..." : <Send size={20} />}
                     </button>
                   </form>
                 </>
               ) : (
-                <div className="admin-empty center">
-                  Could not load this enquiry.
-                </div>
+                <div className="admin-empty center">Could not load this enquiry.</div>
               )}
             </section>
           </section>
