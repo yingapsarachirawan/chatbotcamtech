@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  MessageCirclePlus,
   GraduationCap,
   Wallet,
   BadgePercent,
@@ -9,7 +8,6 @@ import {
   Trash2,
   Home,
   Clock3,
-  Settings,
   X,
 } from "lucide-react";
 import logo from "../assets/logo.jpg";
@@ -111,15 +109,6 @@ export default function Sidebar({
 
             <button
               type="button"
-              onClick={handleNewChat}
-              className="minimal-nav-button"
-              title="New AI Chat"
-            >
-              <MessageCirclePlus size={20} />
-            </button>
-
-            <button
-              type="button"
               onClick={handleSupportClick}
               className={`minimal-nav-button ${isSupportMode ? "active" : ""}`}
               title={hasSupportThread ? "Admissions Chat" : "Contact Admissions"}
@@ -157,10 +146,6 @@ export default function Sidebar({
         </div>
 
         <div className="minimal-sidebar-bottom">
-          <button type="button" className="minimal-nav-button" title="Settings">
-            <Settings size={19} />
-          </button>
-
           <div
             className={`minimal-user-dot ${
               systemStatus?.ready ? "online" : "offline"

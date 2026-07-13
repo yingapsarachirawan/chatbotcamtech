@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -9,7 +10,6 @@ import {
   RefreshCw,
   Send,
   SendHorizontal,
-  Settings,
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import {
@@ -227,7 +227,7 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
 
   useEffect(() => {
     loadInbox();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+ 
   }, []);
 
   useEffect(() => {
@@ -421,10 +421,6 @@ export default function AdminDashboard({ onLogout, onBackToChat }) {
         <div className="admin-rail-bottom">
           <button type="button" title="Back to Chatbot" onClick={onBackToChat}>
             <Bot size={20} />
-          </button>
-
-          <button type="button" title="Settings">
-            <Settings size={20} />
           </button>
 
           <button type="button" title="Logout" onClick={handleLogout}>
