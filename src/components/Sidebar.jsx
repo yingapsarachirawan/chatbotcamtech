@@ -1,39 +1,15 @@
 import { useState } from "react";
 import {
-  GraduationCap,
-  Wallet,
-  BadgePercent,
-  Languages,
+  ChevronDown,
+  ChevronRight,
   Headphones,
+  Menu,
+  MessageCircle,
+  SquarePen,
   Trash2,
-  Home,
-  Clock3,
   X,
 } from "lucide-react";
 import logo from "../assets/logo.jpg";
-
-const quickTopics = [
-  {
-    label: "Admission",
-    question: "What are the admission requirements?",
-    icon: GraduationCap,
-  },
-  {
-    label: "Tuition Fees",
-    question: "I want to know about tuition fee",
-    icon: Wallet,
-  },
-  {
-    label: "Scholarships",
-    question: "Scholarship details",
-    icon: BadgePercent,
-  },
-  {
-    label: "English Requirement",
-    question: "What are the English requirements?",
-    icon: Languages,
-  },
-];
 
 function formatHistoryTime(value) {
   if (!value) return "";
@@ -57,9 +33,7 @@ function formatHistoryTime(value) {
 
 export default function Sidebar({
   onNewChat,
-  onQuickQuestion,
   onSupportClick,
-  systemStatus,
   hasSupportThread,
   isSupportMode,
   aiChatSessions = [],
@@ -67,154 +41,158 @@ export default function Sidebar({
   onSelectAiChat,
   onDeleteAiChat,
 }) {
-  const [showHistory, setShowHistory] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  function closeMobileSidebar() {
+    setMobileOpen(false);
+  }
 
   function handleNewChat() {
-    setShowHistory(false);
+    closeMobileSidebar();
     onNewChat?.();
   }
 
   function handleSupportClick() {
-    setShowHistory(false);
+    closeMobileSidebar();
     onSupportClick?.();
   }
 
-  function handleQuickTopic(question) {
-    setShowHistory(false);
-    onQuickQuestion?.(question);
+  function handleSelectChat(chatId) {
+    closeMobileSidebar();
+    onSelectAiChat?.(chatId);
   }
 
   return (
     <>
-      <aside className="sidebar minimal-sidebar">
-        <div className="minimal-sidebar-top">
+      <button
+        type="button"
+        className="camtech-mobile-sidebar-button"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open sidebar"
+      >
+        <Menu size={20} />
+      </button>
+
+      {mobileOpen && (
+        <button
+          type="button"
+          className="camtech-sidebar-overlay"
+          onClick={closeMobileSidebar}
+          aria-label="Close sidebar"
+        />
+      )}
+
+      <aside
+        className={`sidebar camtech-gpt-sidebar ${
+          mobileOpen ? "mobile-open" : ""
+        }`}
+      >
+        <div className="camtech-gpt-top">
+          <div className="camtech-gpt-brand">
+            <img src={logo} alt="CamTech logo" />
+
+            <div>
+              <strong>CamTech</strong>
+              <span>Assistant</span>
+            </div>
+          </div>
+
           <button
             type="button"
-            className="minimal-logo-button"
-            onClick={handleNewChat}
-            title="CamTech Assistant"
+            className="camtech-gpt-mobile-close"
+            onClick={closeMobileSidebar}
+            aria-label="Close sidebar"
           >
-            <img src={logo} alt="CamTech logo" />
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="camtech-gpt-menu">
+          <button
+            type="button"
+            className={`camtech-gpt-menu-item ${
+              !isSupportMode ? "active" : ""
+            }`}
+            onClick={handleNewChat}
+          >
+            <SquarePen size={19} />
+            <span>New chat</span>
           </button>
 
-          <nav className="minimal-nav">
-            <button
-              type="button"
-              onClick={handleNewChat}
-              className={`minimal-nav-button ${!isSupportMode ? "active" : ""}`}
-              title="Home"
-            >
-              <Home size={21} />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSupportClick}
-              className={`minimal-nav-button ${isSupportMode ? "active" : ""}`}
-              title={hasSupportThread ? "Admissions Chat" : "Contact Admissions"}
-            >
-              <Headphones size={20} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowHistory((current) => !current)}
-              className={`minimal-nav-button ${showHistory ? "active" : ""}`}
-              title="Chat History"
-            >
-              <Clock3 size={20} />
-            </button>
-          </nav>
-
-          <div className="minimal-topic-rail">
-            {quickTopics.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className="minimal-topic-button"
-                  onClick={() => handleQuickTopic(item.question)}
-                  title={item.label}
-                >
-                  <Icon size={18} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="minimal-sidebar-bottom">
-          <div
-            className={`minimal-user-dot ${
-              systemStatus?.ready ? "online" : "offline"
+          <button
+            type="button"
+            className={`camtech-gpt-menu-item ${
+              isSupportMode ? "active" : ""
             }`}
-            title={systemStatus?.ready ? "Assistant online" : "Checking system"}
+            onClick={handleSupportClick}
           >
-            <img src={logo} alt="Assistant status" />
-            <span />
-          </div>
+            <Headphones size={19} />
+            <span>
+              {hasSupportThread ? "Admissions Chat" : "Contact Admissions"}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="camtech-gpt-menu-item"
+            onClick={() => setHistoryOpen((current) => !current)}
+          >
+            <MessageCircle size={19} />
+            <span>Chat History</span>
+
+            {historyOpen ? (
+              <ChevronDown className="camtech-gpt-chevron" size={17} />
+            ) : (
+              <ChevronRight className="camtech-gpt-chevron" size={17} />
+            )}
+          </button>
         </div>
-      </aside>
 
-      {showHistory && (
-        <aside className="history-drawer">
-          <div className="history-drawer-header">
-            <div>
-              <h2>Chat History</h2>
-              <p>{aiChatSessions.length} saved conversation</p>
-            </div>
+        {historyOpen && (
+          <div className="camtech-gpt-history">
+            <p className="camtech-gpt-history-title">Chats</p>
 
-            <button
-              type="button"
-              onClick={() => setShowHistory(false)}
-              aria-label="Close history"
-            >
-              <X size={18} />
-            </button>
+            {aiChatSessions.length > 0 ? (
+              <div className="camtech-gpt-chat-list">
+                {aiChatSessions.map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={`camtech-gpt-chat-item ${
+                      activeAiChatId === chat.id && !isSupportMode
+                        ? "active"
+                        : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className="camtech-gpt-chat-main"
+                      onClick={() => handleSelectChat(chat.id)}
+                    >
+                      <span>{chat.title || "New AI Chat"}</span>
+                      <small>{formatHistoryTime(chat.updatedAt)}</small>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="camtech-gpt-chat-delete"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteAiChat?.(chat.id);
+                      }}
+                      aria-label="Delete chat"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="camtech-gpt-empty">No chat history yet.</div>
+            )}
           </div>
-
-          {aiChatSessions.length > 0 ? (
-            <div className="history-drawer-list">
-              {aiChatSessions.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`history-drawer-item ${
-                    activeAiChatId === chat.id && !isSupportMode ? "active" : ""
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className="history-drawer-main"
-                    onClick={() => {
-                      setShowHistory(false);
-                      onSelectAiChat?.(chat.id);
-                    }}
-                  >
-                    <strong>{chat.title || "New AI Chat"}</strong>
-                    <span>{formatHistoryTime(chat.updatedAt)}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="history-drawer-delete"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDeleteAiChat?.(chat.id);
-                    }}
-                    aria-label="Delete chat"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="history-drawer-empty">No AI chat history yet.</div>
-          )}
-        </aside>
-      )}
+        )}
+      </aside>
     </>
   );
 }
