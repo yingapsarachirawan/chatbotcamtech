@@ -1,4 +1,601 @@
 /* ==================================================
+   FINAL CLEAN ENQUIRY MODAL UI
+   Desktop + Mobile
+================================================== */
+
+.enquiry-overlay,
+.clean-enquiry-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+
+  padding: 24px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  background: rgba(15, 23, 42, 0.38) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+
+  overflow-y: auto !important;
+}
+
+.enquiry-modal,
+.clean-enquiry-modal {
+  width: min(92vw, 720px) !important;
+  max-height: calc(100dvh - 48px) !important;
+
+  margin: auto !important;
+  padding: 30px 34px 32px !important;
+
+  border-radius: 28px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+
+  box-shadow: 0 32px 90px rgba(15, 23, 42, 0.22) !important;
+
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Close button */
+.enquiry-close,
+.clean-enquiry-close {
+  position: absolute !important;
+  top: 22px !important;
+  right: 22px !important;
+
+  width: 40px !important;
+  height: 40px !important;
+
+  border-radius: 999px !important;
+  border: 1px solid #dbe5f0 !important;
+  background: #ffffff !important;
+  color: #0e315d !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  box-shadow: none !important;
+}
+
+/* Header */
+.enquiry-header,
+.clean-enquiry-hero {
+  padding: 0 52px 24px 0 !important;
+  margin: 0 0 24px !important;
+
+  border-bottom: 1px solid #e2e8f0 !important;
+
+  display: grid !important;
+  grid-template-columns: 70px minmax(0, 1fr) !important;
+  gap: 18px !important;
+  align-items: center !important;
+}
+
+.clean-enquiry-logo {
+  width: 64px !important;
+  height: 64px !important;
+  min-width: 64px !important;
+
+  border-radius: 999px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  box-shadow: 0 14px 32px rgba(14, 49, 93, 0.1) !important;
+}
+
+.clean-enquiry-logo img {
+  width: 48px !important;
+  height: 48px !important;
+  object-fit: contain !important;
+  border-radius: 999px !important;
+}
+
+.enquiry-kicker,
+.clean-enquiry-kicker {
+  margin: 0 0 8px !important;
+
+  color: #0e315d !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.11em !important;
+  text-transform: uppercase !important;
+}
+
+.enquiry-header h2,
+.clean-enquiry-hero h2 {
+  margin: 0 !important;
+
+  color: #172033 !important;
+  font-size: 27px !important;
+  line-height: 1.15 !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.04em !important;
+}
+
+.enquiry-header p,
+.clean-enquiry-hero span {
+  margin: 10px 0 0 !important;
+
+  color: #64748b !important;
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+}
+
+/* Form */
+.enquiry-form,
+.clean-enquiry-form {
+  padding: 0 !important;
+  display: grid !important;
+  gap: 18px !important;
+}
+
+.enquiry-grid,
+.clean-enquiry-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 16px !important;
+}
+
+.clean-field,
+.enquiry-form label {
+  display: grid !important;
+  gap: 8px !important;
+
+  color: #172033 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.clean-field span,
+.enquiry-form label > span {
+  color: #172033 !important;
+}
+
+.clean-field em {
+  color: #ef4444 !important;
+  font-style: normal !important;
+}
+
+/* Field shell */
+.clean-field-shell {
+  width: 100% !important;
+  height: 52px !important;
+  min-height: 52px !important;
+
+  padding: 0 14px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+
+  border-radius: 16px !important;
+  border: 1px solid #dbe5f0 !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+/* IMPORTANT: remove ugly double border */
+.clean-field-shell input,
+.enquiry-form .clean-field-shell input {
+  flex: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 50px !important;
+  min-height: 50px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+
+  color: #172033 !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+}
+
+.clean-field-shell input::placeholder {
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+}
+
+.clean-field-shell:focus-within {
+  border-color: rgba(14, 49, 93, 0.45) !important;
+  box-shadow: 0 0 0 4px rgba(14, 49, 93, 0.08) !important;
+}
+
+/* Stop old generic input style from affecting this modal */
+.enquiry-form input:not(.clean-field-shell input) {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Textarea */
+.clean-field textarea,
+.enquiry-form textarea {
+  width: 100% !important;
+  min-height: 128px !important;
+
+  padding: 15px 16px !important;
+
+  border-radius: 18px !important;
+  border: 1px solid #dbe5f0 !important;
+  outline: none !important;
+  background: #ffffff !important;
+
+  color: #172033 !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+
+  resize: vertical !important;
+  box-shadow: none !important;
+}
+
+.clean-field textarea::placeholder,
+.enquiry-form textarea::placeholder {
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+}
+
+.clean-field textarea:focus,
+.enquiry-form textarea:focus {
+  border-color: rgba(14, 49, 93, 0.45) !important;
+  box-shadow: 0 0 0 4px rgba(14, 49, 93, 0.08) !important;
+}
+
+/* Error */
+.enquiry-error {
+  margin: 0 !important;
+  padding: 12px 14px !important;
+
+  border-radius: 14px !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* Buttons */
+.enquiry-actions,
+.clean-enquiry-actions {
+  padding-top: 6px !important;
+
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.secondary-button,
+.clean-secondary-button {
+  min-height: 48px !important;
+  padding: 0 22px !important;
+
+  border-radius: 999px !important;
+  border: 1px solid #dbe5f0 !important;
+  background: #ffffff !important;
+  color: #0e315d !important;
+
+  font-size: 14px !important;
+  font-weight: 700 !important;
+
+  box-shadow: none !important;
+}
+
+.primary-button,
+.clean-primary-button {
+  min-height: 48px !important;
+  padding: 0 26px !important;
+
+  border: none !important;
+  border-radius: 999px !important;
+  background: #0e315d !important;
+  color: #ffffff !important;
+
+  font-size: 14px !important;
+  font-weight: 800 !important;
+
+  box-shadow: 0 14px 28px rgba(14, 49, 93, 0.2) !important;
+}
+
+/* ==================================================
+   Mobile enquiry modal
+================================================== */
+
+@media (max-width: 760px) {
+  .enquiry-overlay,
+  .clean-enquiry-overlay {
+    align-items: flex-start !important;
+    justify-content: center !important;
+
+    padding: calc(env(safe-area-inset-top) + 12px) 12px
+      calc(env(safe-area-inset-bottom) + 16px) !important;
+  }
+
+  .enquiry-modal,
+  .clean-enquiry-modal {
+    width: 100% !important;
+    max-width: 430px !important;
+    max-height: calc(100dvh - 28px) !important;
+
+    padding: 22px !important;
+    border-radius: 26px !important;
+  }
+
+  .enquiry-header,
+  .clean-enquiry-hero {
+    grid-template-columns: 52px minmax(0, 1fr) !important;
+    gap: 14px !important;
+
+    padding: 0 42px 18px 0 !important;
+    margin-bottom: 18px !important;
+  }
+
+  .clean-enquiry-logo {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+  }
+
+  .clean-enquiry-logo img {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .enquiry-header h2,
+  .clean-enquiry-hero h2 {
+    font-size: 21px !important;
+    line-height: 1.2 !important;
+  }
+
+  .enquiry-header p,
+  .clean-enquiry-hero span {
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+
+  .enquiry-form,
+  .clean-enquiry-form {
+    gap: 14px !important;
+  }
+
+  .enquiry-grid,
+  .clean-enquiry-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .clean-field-shell {
+    height: 48px !important;
+    min-height: 48px !important;
+  }
+
+  .clean-field-shell input,
+  .enquiry-form .clean-field-shell input {
+    height: 46px !important;
+    min-height: 46px !important;
+    font-size: 14px !important;
+  }
+
+  .clean-field textarea,
+  .enquiry-form textarea {
+    min-height: 110px !important;
+    font-size: 14px !important;
+  }
+
+  .enquiry-actions,
+  .clean-enquiry-actions {
+    flex-direction: column-reverse !important;
+    gap: 10px !important;
+  }
+
+  .secondary-button,
+  .clean-secondary-button,
+  .primary-button,
+  .clean-primary-button {
+    width: 100% !important;
+  }
+}
+/* ==================================================
+   Sidebar text normal weight
+================================================== */
+
+.camtech-gpt-menu-item {
+  font-weight: 500 !important;
+}
+
+.camtech-gpt-history-title {
+  font-weight: 500 !important;
+}
+
+.camtech-gpt-chat-main span {
+  font-weight: 500 !important;
+}
+
+.camtech-gpt-chat-main small {
+  font-weight: 400 !important;
+}
+
+.camtech-gpt-brand strong {
+  font-weight: 700 !important;
+}
+
+.camtech-gpt-brand span {
+  font-weight: 500 !important;
+}
+/* ==================================================
+   MOBILE ENQUIRY FORM FIX
+   Fixes iPhone/Safari modal cut-off + double input border
+================================================== */
+
+@media (max-width: 760px) {
+  .enquiry-overlay,
+  .clean-enquiry-overlay {
+    align-items: flex-start !important;
+    place-items: unset !important;
+
+    padding: calc(env(safe-area-inset-top) + 12px) 12px
+      calc(env(safe-area-inset-bottom) + 18px) !important;
+
+    overflow-y: auto !important;
+    background: rgba(15, 23, 42, 0.38) !important;
+  }
+
+  .enquiry-modal,
+  .clean-enquiry-modal {
+    width: 100% !important;
+    max-width: 430px !important;
+    max-height: calc(100dvh - 32px) !important;
+
+    margin: 0 auto !important;
+    padding: 22px !important;
+
+    border-radius: 28px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .clean-enquiry-hero,
+  .enquiry-header {
+    padding: 0 42px 18px 0 !important;
+    margin: 0 !important;
+
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .clean-enquiry-logo {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+  }
+
+  .clean-enquiry-logo img {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .clean-enquiry-hero h2,
+  .enquiry-header h2 {
+    font-size: 22px !important;
+    line-height: 1.2 !important;
+  }
+
+  .clean-enquiry-hero span,
+  .enquiry-header p {
+    margin-top: 6px !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+
+  .clean-enquiry-form,
+  .enquiry-form {
+    padding-top: 18px !important;
+    gap: 13px !important;
+  }
+
+  .clean-enquiry-grid,
+  .enquiry-grid {
+    grid-template-columns: 1fr !important;
+    gap: 13px !important;
+  }
+
+  .clean-field,
+  .enquiry-form label {
+    gap: 7px !important;
+    font-size: 13px !important;
+  }
+
+  .clean-field-shell {
+    min-height: 48px !important;
+    height: 48px !important;
+    padding: 0 13px !important;
+    border-radius: 16px !important;
+  }
+
+  /* IMPORTANT: removes the ugly double border inside inputs */
+  .clean-field-shell input,
+  .enquiry-form .clean-field-shell input {
+    height: 46px !important;
+    min-height: 46px !important;
+    padding: 0 !important;
+
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .clean-field textarea,
+  .enquiry-form textarea {
+    min-height: 120px !important;
+    border-radius: 18px !important;
+    font-size: 14px !important;
+  }
+
+  .clean-enquiry-actions,
+  .enquiry-actions {
+    padding-top: 4px !important;
+    flex-direction: column-reverse !important;
+    gap: 10px !important;
+  }
+
+  .clean-primary-button,
+  .clean-secondary-button,
+  .primary-button,
+  .secondary-button {
+    width: 100% !important;
+    min-height: 48px !important;
+  }
+
+  .enquiry-close,
+  .clean-enquiry-close {
+    top: 16px !important;
+    right: 16px !important;
+    width: 36px !important;
+    height: 36px !important;
+  }
+}
+
+/* Extra small iPhone */
+@media (max-width: 390px) {
+  .enquiry-modal,
+  .clean-enquiry-modal {
+    padding: 18px !important;
+    border-radius: 24px !important;
+  }
+
+  .clean-enquiry-hero h2,
+  .enquiry-header h2 {
+    font-size: 20px !important;
+  }
+
+  .clean-enquiry-hero span,
+  .enquiry-header p {
+    font-size: 12.5px !important;
+  }
+
+  .clean-field textarea,
+  .enquiry-form textarea {
+    min-height: 105px !important;
+  }
+}
+/* ==================================================
    TRUE RESPONSIVE CHATBOT LAYOUT
    Desktop / Laptop / Tablet / Mobile
 ================================================== */
